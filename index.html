@@ -1,0 +1,40 @@
+<html>
+    <head>
+        <script type="text/javascript" src="http://code.jquery.com/jquery-latest.js"></script>
+        <script>
+            $(function(){
+                mousedown_X = mousedown_Y = mousemove_X = mousemove_Y = OrgX = OrgY = 0;
+                isMove = false;
+                $("#drag").mousemove(function(event){
+                    if(isMove == false){return;}
+                    mousemove_X = event.clientX;
+                    mousemove_Y = event.clientY;
+                    var left = mousemove_X-mousedown_X+OrgX;
+                    var top = mousemove_Y-mousedown_Y+OrgY;
+                    $(this).offset({left:left,top:top});
+                    return false;
+                });
+ 
+                $("#drag").mousedown(function(event){
+                    isMove = true;
+                    mousedown_X = event.clientX;
+                    mousedown_Y = event.clientY;
+                    OrgX = $(this).offset().left;
+                    OrgY = $(this).offset().top;
+                });
+ 
+                $("html").mouseup(function (event) {
+                    isMove = false;
+                });
+            });
+        </script>
+        <style>
+        #drag{margin-left:200px;margin-top:200px;height:100px;width:100px;background-color:yellow;}
+        </style>
+    </head>
+    <body>
+        <div id="drag">
+             
+        </div>
+    </body>
+</html>
