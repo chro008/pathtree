@@ -1,0 +1,27 @@
+<script>
+//label是点击 拖动的元素
+var isdown = false, ismove = false;
+label.onmousedown = function () {
+    isdown = true;
+};
+
+label.onmouseup = function () {
+    isdown = false;
+};
+
+label.onmousemove = function () {
+    if(isdown && !ismove) {
+        ismove = true;
+    }
+};
+
+label.onclick = function () {
+//如果是鼠标拖动事件，不触发点击后的处理了
+if(ismove) {
+    ismove = false;
+    return;
+}
+//dosomething。。点击事件执行函数                   
+};
+
+</script>
