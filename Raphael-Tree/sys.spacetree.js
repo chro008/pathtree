@@ -36,10 +36,7 @@
         var thisobj = this;
         thisobj.properties = $.extend($.extend({}, thisobj.defaulProperties), properties || {});
         thisobj.pos = {x: 0, y: 0};
-        thisobj.data = {
-            depth: 0,
-            index: 0
-        };
+        thisobj.data = {};
     }
 
     Node.prototype = {
@@ -77,9 +74,6 @@
         getData: function () {
             return this.data;
         },
-        getDepth: function () {
-            return this.data.depth || 0;
-        },
         getId: function () {
             return this.data.id;
         },
@@ -90,12 +84,6 @@
             this.rate = rate;
         }
     };
-
-    function Edge(properties) {
-        var thisobj = this;
-        thisobj.properties = $.extend($.extend({}, thisobj.defaulProperties), properties || {});
-    }
-
 
     /**
      * 数据加载对象
@@ -215,6 +203,18 @@
                     }
                 }
             return parent;
+        },
+
+        getNodeDepth: function (nodeId) {
+            var depth = 0,
+                parentId = this.getParentNodeId(nodeId);
+
+            while (parentId) {
+                depth += 1;
+                parentId = this.getParentNodeId(parentId)
+            }
+            return depth;
+
         }
     };
 
@@ -230,13 +230,10 @@
 		height,
 		...
 	},
-     Edges:{	//连线属性
-
-	},
      distance:num,   //父级节点和子节点之间的距离 默认110
      spacing:num,   //同级别节点之间的距离   默认10
      getNodeXXX:function(node),           // 可以根据node  获取到node对象的属性，也可以设置其属性，如设置node的颜色等 可以设置节点的 rate，影响连线入口小方块的高度 以及 入口管子的高度；以及连线的颜色等
-     getNodeHeight、getNodeColor、getNodeRate、getNodeExitProperties、getNodeEntraceProperties
+     getNodeHeight、getNodeColor、getNodeRate、getNodeExitProperties、getNodeEntraceProperties、getEdgeFillColor
      **/
 
 
@@ -269,8 +266,6 @@
         thisobj.dataLoader = new DataLoader();
         //树的所有节点
         thisobj.nodes = [];
-        //树的所有连线
-        thisobj.edges = [];
         //树的点击节点
         thisobj.clickNode = null;
 
@@ -298,7 +293,7 @@
     SpaceTree.prototype.loadData = function (jsonData) {
         var thisobj = this,
             data = jsonData || [],
-            node, edge;
+            node;
 
         thisobj.nodes = [];
 
@@ -374,12 +369,30 @@
 
         function setNodeProperties(node) {
 
+            /**
+             * 设置node的高度
+             */
             if (thisobj.options.getNodeHeight) {
                 node.setHeight(thisobj.options.getNodeHeight(node));
             }
 
+            /**
+             * example
+             * 设置node背景色
+             getNodeColor: function (node, selected, hasChild) {
+                if(selected) {
+                    console.log("node["+node.getId()+"] is selected,color is:E4393C");
+                    return "#E4393C";
+                } else if(hasChild){
+                    console.log("node["+node.getId()+"] not selected but has children,color is:9AC3FF");
+                    return "#9AC3FF";
+                } else {
+                    console.log("node["+node.getId()+"] not selected nor has children,color is:C2CDF8");
+                    return "#C2CDF8";
+                }
+            }
+             */
             if (thisobj.options.getNodeColor) {
-
                 var color = thisobj.options.getNodeColor(node, selected, hasChild);
                 node.setFill(color);
                 //node.setFill("90-#fff:0-" + color);
@@ -405,7 +418,7 @@
         nodeLable.style.top = pos.y + "px";
 
         if (thisobj.options.setNodeLabelHtml) {
-            thisobj.options.setNodeLabelHtml(node,nodeLable);
+            thisobj.options.setNodeLabelHtml(node, nodeLable);
         } else {
             nodeLable.innerHTML = node.getId();
         }
@@ -419,7 +432,7 @@
         }
 
         if (thisobj.options.addNodeLabelEvent) {
-            thisobj.options.addNodeLabelEvent(node,nodeLable);
+            thisobj.options.addNodeLabelEvent(node, nodeLable);
         } else {
             nodeLable.onclick = function () {
                 thisobj.onclick(node.getId());
@@ -436,8 +449,8 @@
             space = thisobj.options.spacing,
             paper = thisobj.paper,
             dataLoader = thisobj.dataLoader,
-            depth = node.getDepth(),
             node_id = node.getId(),
+            depth = dataLoader.getNodeDepth(node_id),
             parentid = dataLoader.getParentNodeId(node_id),
             peerids = dataLoader.getPeerNodeIds(node_id),
             size = peerids.length,
@@ -521,8 +534,11 @@
                 paper = thisobj.paper;
 
             function setNodeData(thisNode, parentNode) {
+                /**
+                 * 设置node的流入比率  可能影响连线重点的粗细等
+                 */
                 if (thisobj.options.getNodeRate) {
-                    thisobj.options.getNodeRate(thisNode, parentNode);
+                    thisNode.setRate(thisobj.options.getNodeRate(thisNode, parentNode));
                 }
             }
 
@@ -530,59 +546,102 @@
             //设置节点 出入口 小方块的属性  颜色 高 宽等
 
 
-
             //默认的出口属性，包括出口的宽，高，颜色 以及管道出口的高度  （出口 指 从一个节点流出到子节点  的 流出位置  ）
             var default_exit = {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
                 default_entranceH = 0.2 * thisNodeHeight + (0.8 * thisNodeHeight / 100 ) * thisNode.getRate(),
-                default_entrace = {width: 3, height: default_entranceH, color: "#89B7E8", pipe_height: default_entranceH - 6};
+                default_entrace = {
+                    width: 3,
+                    height: default_entranceH,
+                    color: "#89B7E8",
+                    pipe_height: default_entranceH - 6
+                };
 
             function setNodePortProperties() {
+                /**
+                 * example
+                 * 设置当前节点相连的父节点的出口的一些属性，
+                 * @return 返回对象 包含属性：width->出口方块的宽度，height->出口方块的高度，color->出口方块的颜色，pipe_height->与出口方块连接的连线管道高度
+                 getNodeExitProperties: function (node) {
+                    var props = [
+                        {width: 20, height: 20, color: "blue", pipe_height: 10},
+                        {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
+                        {width: 15, height: 10, color: "red", pipe_height: 7}];
+                    var retProp = props[parseInt(Math.random() * 3)];
+                    console.log(node.getId() + "出口属性：", retProp);
+                    return retProp;
+                }
+                 */
+
                 //如果该节点是 该层节点的首节点， 并且有设置出口属性的callback 设置一下父节点的出口  该节点的出口  需要下级子节点同理设置
                 if (thisobj.options.getNodeExitProperties && index === 0) {
                     var props = thisobj.options.getNodeExitProperties(parentNode);
                     parentNode.exit = props;
                 }
 
+
+                /**
+                 * 方法和  getNodeExitProperties 类似
+                 */
                 if (thisobj.options.getNodeEntranceProperties) {
-                    var props = thisobj.options.getNodeEntranceProperties(thisNode);
+                    var props = thisobj.options.getNodeEntranceProperties(thisNode,parentNode,thisobj.getRate());
                     thisNode.entrance = $.extend(default_entrance, props);
                 }
             }
 
             setNodePortProperties();
 
-            var entrance = $.extend(default_entrace, thisNode.entrance),            //入口小方块
-                exit = $.extend(default_exit, parentNode.exit),                       //出口小方块
-                endVHeight = exit.pipe_height,
-                startVHeight = entrance.pipe_height;
+            var entrance = $.extend(default_entrace, thisNode.entrance),                //入口小方块
+                exit = $.extend(default_exit, parentNode.exit),                         //出口小方块
+                startHeightV = exit.pipe_height,
+                endHeightV = entrance.pipe_height;
 
             var parentPos = parentNode.getPosition(),
                 thisPos = thisNode.getPosition(),
-                start1Pos = {x: thisPos.x - entrance.width, y: thisPos.y + thisNodeHeight / 2 - startVHeight / 2},
-                start2Pos = {x: thisPos.x - entrance.width, y: thisPos.y + thisNodeHeight / 2 + startVHeight / 2},
-                end1Pos = {x: parentPos.x + width + exit.width, y: parentPos.y + parentHeight / 2 - endVHeight / 2},
-                end2Pos = {x: parentPos.x + width + exit.width, y: parentPos.y + parentHeight / 2 + endVHeight / 2};
+                startPos1 = {x: parentPos.x + width + exit.width, y: parentPos.y + parentHeight / 2 - startHeightV / 2},
+                startPos2 = {x: parentPos.x + width + exit.width, y: parentPos.y + parentHeight / 2 + startHeightV / 2},
+                endPos1 = {x: thisPos.x - entrance.width, y: thisPos.y + thisNodeHeight / 2 - endHeightV / 2},
+                endPos2 = {x: thisPos.x - entrance.width, y: thisPos.y + thisNodeHeight / 2 + endHeightV / 2};
 
-            var start1X = start1Pos.x,
-                start1Y = start1Pos.y,
-                x0 = start1X - (start1Pos.x - end1Pos.x) / 4,
-                y0 = start1Y,
+            var endX1 = endPos1.x,
+                endY1 = endPos1.y,
+                x0 = endX1 - (endPos1.x - startPos1.x) / 4,
+                y0 = endY1,
                 x1 = x0,
-                y1 = start1Y + (end1Pos.y - start1Pos.y) * 0.9,
-                end1X = end1Pos.x,
-                end1Y = end1Pos.y,
+                y1 = endY1 + (startPos1.y - endPos1.y) * 0.9,
+                startX1 = startPos1.x,
+                startY1 = startPos1.y,
                 x11 = x0,
-                y11 = end1Y + endVHeight - (end1Pos.y - start1Pos.y) * 0.1,
+                y11 = startY1 + startHeightV - (startPos1.y - endPos1.y) * 0.1,
                 x00 = x0,
-                y00 = start2Pos.y,
-                start2X = start2Pos.x,
-                start2Y = start2Pos.y;
+                y00 = endPos2.y,
+                endX2 = endPos2.x,
+                endY2 = endPos2.y;
 
 
-            var connectPathStr = "M" + start1X + "," + start1Y + "C" + x0 + "," + y0 + "," + x1 + "," + y1 + "," + end1X + "," + end1Y +
-                "V" + end2Pos.y + "C" + x11 + "," + y11 + "," + x00 + "," + y00 + "," + start2X + "," + start2Y;
+            var connectPathStr = "M" + endX1 + "," + endY1 + "C" + x0 + "," + y0 + "," + x1 + "," + y1 + "," + startX1 + "," + startY1 +
+                "V" + startPos2.y + "C" + x11 + "," + y11 + "," + x00 + "," + y00 + "," + endX2 + "," + endY2;
 
             var connectFill = ($.indexOf(clickFlowNodeIds, nodeid) >= 0 || $.indexOf(clickNodeChildren, nodeid) >= 0) ? "#daecff" : "#F1F1F1";
+
+            function setEdgeProperties() {
+                /**
+                 * example:
+                 * 设置连线颜色
+                getEdgeFillColor:function (thisNode,parentNode) {
+                    var color = ["red","yellow","blue","gray","pink","green"];
+                    var retColor = color[parseInt(Math.random()*6)];
+                    console.log(parentNode.getId() + "->" + thisNode.getId(),retColor);
+                    return retColor;
+                }
+                 */
+                if (thisobj.options.getEdgeFillColor) {
+                    connectFill = thisobj.options.getEdgeFillColor(thisNode,parentNode);
+                }
+            }
+
+            setEdgeProperties();
+
+
             //画连线
             paper.path(connectPathStr).attr({
                 'fill': connectFill,
@@ -590,12 +649,12 @@
             });
 
             //画入口小方块
-            var entrancePathStr = "M" + start1Pos.x + "," + (thisPos.y + thisNodeHeight / 2 - entrance.height / 2) + "H" + thisPos.x + "V" + (thisPos.y + thisNodeHeight / 2 + entrance.height / 2) + "H" + start1Pos.x + "Z";
+            var entrancePathStr = "M" + endPos1.x + "," + (thisPos.y + thisNodeHeight / 2 - entrance.height / 2) + "H" + thisPos.x + "V" + (thisPos.y + thisNodeHeight / 2 + entrance.height / 2) + "H" + endPos1.x + "Z";
             paper.path(entrancePathStr).attr({fill: entrance.color, "stroke-width": 0});
 
             //画出口小方块
             if (index === 0) {
-                var exitPathStr = "M" + (end1Pos.x - exit.width) + "," + (parentPos.y + parentHeight / 2 - exit.height / 2) + "H" + end1Pos.x + "V" + (parentPos.y + parentHeight / 2 + exit.height / 2) + "H" + (end1Pos.x - exit.width) + "Z";
+                var exitPathStr = "M" + (startPos1.x - exit.width) + "," + (parentPos.y + parentHeight / 2 - exit.height / 2) + "H" + startPos1.x + "V" + (parentPos.y + parentHeight / 2 + exit.height / 2) + "H" + (startPos1.x - exit.width) + "Z";
                 paper.path(exitPathStr).attr({fill: exit.color, "stroke-width": 0});
             }
         }
@@ -606,7 +665,7 @@
             dataLoader = thisobj.dataLoader,
             clickNodeId = thisobj.clickNodeId || dataLoader.root.id,
             clickNode = thisobj.getNodeById(clickNodeId),
-            depth = clickNode.getDepth(),
+            depth = dataLoader.getNodeDepth(clickNodeId),
             cols = depth + 1,
             childIds = dataLoader.getChildrenNodeIds(clickNodeId),
             secondNodeIds = dataLoader.getRootChildNodeIds(),

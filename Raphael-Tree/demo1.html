@@ -28,114 +28,95 @@
     var jsonData = [
         {
             id: "zero",
-            depth: 0,
             data: {name: "root", age: 10, num: 100}
         },
         {
             id: "first-0",
-            depth: 1,
             data: {name: "第一级第0个", age: 10, num: 30},
             parent: "zero"
         },
         {
             id: "first-1",
-            depth: 1,
             data: {name: "第一级第1个", age: 10, num: 20},
             parent: "zero"
         },
         {
             id: "first-2",
-            depth: 1,
             data: {name: "第一级第2个", age: 10, num: 15},
             parent: "zero"
         },
         {
             id: "first-3",
-            depth: 1,
             data: {name: "第一级第3个", age: 10, num: 10},
             parent: "zero"
         },
         {
             id: "first-4",
-            depth: 1,
             data: {name: "第一级第4个", age: 10, num: 5},
             parent: "zero"
         },
         {
             id: "first-5",
-            depth: 1,
             data: {name: "第一级第5个", age: 10, num: 3},
             parent: "zero"
         },
         {
             id: "first-6",
-            depth: 1,
             data: {name: "第一级第6个", age: 10, num: 2},
             parent: "zero"
         },
         {
             id: "first-7",
-            depth: 1,
             data: {name: "第一级第7个", age: 10, num: 1},
             parent: "zero"
         },
         {
             id: "second-0",
-            depth: 2,
             data: {name: "第二级第0个", age: 10, num: 15},
             parent: "first-0"
         },
         {
             id: "second-1",
-            depth: 2,
             data: {name: "第二级第1个", age: 10, num: 8},
             parent: "first-0"
         },
         {
             id: "second-2",
-            depth: 2,
             data: {name: "第二级第2个", age: 10, num: 5},
             parent: "first-0"
         },
         {
             id: "second-3",
-            depth: 2,
             data: {name: "第二级第3个", age: 10, num: 10},
             parent: "first-1"
         },
         {
             id: "second-4",
-            depth: 2,
             data: {name: "第二级第4个", age: 10, num: 5},
             parent: "first-1"
         },
         {
             id: "second-5",
-            depth: 2,
             data: {name: "第二级第5个", age: 10, num: 3},
             parent: "first-2"
         },
         {
             id: "second-6",
-            depth: 2,
             data: {name: "第二级第6个", age: 10, num: 1},
             parent: "first-2"
         },
         {
             id: "third-0",
-            depth: 3,
             data: {name: "第三级第0个", age: 10, num: 1},
             parent: "second-0"
         },
         {
             id: "third-1",
-            depth: 3,
             data: {name: "第三级第1个", age: 10, num: 1},
             parent: "second-0"
         },
         {
             id: "forth-0",
-            depth: 4,
             data: {name: "第4级第0个", age: 10, num: 1},
             parent: "third-0"
         }
@@ -149,13 +130,13 @@
             node.setRate(num1 * 100 / num2);
         },
         addNodeLabelEvent: function (node, nodeLabel) {
-            var ismove = false,clickX,clickY;
+            var ismove = false, clickX, clickY;
             nodeLabel.onclick = function () {
-                if(ismove) {
+                if (ismove) {
                     ismove = false;
-                    alert("拖动事件，不再触发点击事件");
+                    console.log("拖动事件，不再触发点击事件");
                 } else {
-                    alert("刚刚点击了[" + node.getId() + "]");
+                    console.log("刚刚点击了[" + node.getId() + "]");
                     st.onclick(node.getId())
                 }
             };
@@ -170,6 +151,33 @@
                     ismove = true;
                 }
             };
+        },
+        getEdgeFillColor: function (thisNode, parentNode) {
+            var colors = ["red", "yellow", "blue", "gray", "pink", "green"];
+            var retColor = colors[parseInt(Math.random() * 6)];
+            console.log(parentNode.getId() + "->" + thisNode.getId(), retColor);
+            return retColor;
+        },
+        getNodeExitProperties: function (node) {
+            var props = [
+                {width: 20, height: 20, color: "blue", pipe_height: 10},
+                {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
+                {width: 15, height: 10, color: "red", pipe_height: 7}];
+            var retProp = props[parseInt(Math.random() * 3)];
+            console.log(node.getId() + "出口属性：", retProp);
+            return retProp;
+        },
+        getNodeColor: function (node, selected, hasChild) {
+            if(selected) {
+                console.log("node["+node.getId()+"] is selected,color is:E4393C");
+                return "#E4393C";
+            } else if(hasChild){
+                console.log("node["+node.getId()+"] not selected but has children,color is:9AC3FF");
+                return "#9AC3FF";
+            } else {
+                console.log("node["+node.getId()+"] not selected nor has children,color is:C2CDF8");
+                return "#C2CDF8";
+            }
         }
     });
 
@@ -178,4 +186,4 @@
 
 </script>
 </body>
-</html>
+</html>  
