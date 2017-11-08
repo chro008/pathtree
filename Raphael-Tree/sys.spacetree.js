@@ -86,12 +86,13 @@
     };
 
     /**
-     * 数据加载对象
+     * 数据加载对象 存储着树上所有节点的数据
      * @param data
      */
     function DataLoader(data) {
         this.data = [];
         this.root;
+        this.showMap = {};
         this.groups = {};
         if (data) {
             this.init(data);
@@ -99,26 +100,98 @@
     }
 
     DataLoader.prototype = {
+        /**
+         * 初始化对象
+         * @param data
+         */
         init: function (data) {
+            this.restoreData();
+            this.addData(data);
+        },
+
+        /**
+         * 清空对象
+         */
+        restoreData: function () {
+            this.data = [];
+            this.root;
+            this.showMap = {};
+            this.groups = {};
+        },
+
+        addData: function (data) {
             var datas = this.data,
                 groups = this.groups,
                 pid;
 
             for (var i = 0, ch = data.length; i < ch; i++) {
-                datas.push(data[i]);
-                pid = data[i].parent;
-                if (pid) {
-                    if (!groups[pid]) {
-                        groups[pid] = [];
+                if (!this.checkExist(data[i].id)) {
+                    datas.push(data[i]);
+                    pid = data[i].parent;
+                    if (pid) {
+                        if (!groups[pid]) {
+                            groups[pid] = [];
+                        }
+                        groups[pid].push(data[i].id);
+                    } else {
+                        //没有parent 就是根节点
+                        this.root = data[i];
                     }
-                    groups[pid].push(data[i].id);
-                } else {
-                    //没有parent 就是根节点
-                    this.root = data[i];
                 }
             }
         },
 
+        /**
+         * 检验是否存在
+         * @param id   检验的id
+         * @returns {boolean} true 存在  false 不存在
+         */
+        checkExist: function (id) {
+            for (var i = 0, ch = this.data.length; i < ch; i++) {
+                if (this.data[i].id === id) {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        /**
+         * showMap 中存储的是 当前页面展现的数据  目的是为了可以清楚某深度后面的展现，比如点了第二级别的子节点，三层以后都去掉
+         * @param depth 深度  0-N
+         * @param obj   该深度下展现的对象  包含 svg对象和dom对象  详情可见调用此方法的地方
+         */
+        addItemToShowMap: function (depth, obj) {
+            if (!this.showMap[depth]) {
+                this.showMap[depth] = [];
+            }
+            this.showMap[depth].push(obj);
+        },
+
+        /**
+         * 删掉某层以后的展现数据
+         * @param depth
+         * @returns {Array} 返回这些展现的对象  包含svg对象和dom对象  均有 remove() 方法
+         */
+        removeBebindData: function (depth) {
+            var objArr = [], tempArr;
+            for (var key in this.showMap) {
+                if (parseInt(key) > depth) {
+                    tempArr = this.showMap[key];
+
+                    for (var i = 0, ch = tempArr.length; i < ch; i++) {
+                        objArr.push(tempArr[i]);
+                    }
+
+                    delete this.showMap[key];
+                }
+            }
+            return objArr;
+        },
+
+        /**
+         * 获取根节点的子节点
+         * @returns {*}
+         */
         getRootChildNodeIds: function () {
             var rootid = this.root.id;
             return this.getChildrenNodeIds(rootid);
@@ -151,6 +224,11 @@
             return nodes;
         },
 
+        /**
+         * 根据点击的nodeid 得到这个点击的node、root 以及两者之间的nodeid，
+         * @param clickNodeId
+         * @returns {Array}  点击流线上的nodeid 集合 从点击点开始 一直到 root
+         */
         getClickFlowNodeIds: function (clickNodeId) {
             var flowNodeIds = [],
                 clicked = clickNodeId || this.root.id,
@@ -205,6 +283,10 @@
             return parent;
         },
 
+        /**
+         * @param nodeId  要获取深度的node 的id
+         * @returns {number}    该node对应的深度  root对应0
+         */
         getNodeDepth: function (nodeId) {
             var depth = 0,
                 parentId = this.getParentNodeId(nodeId);
@@ -290,6 +372,16 @@
         leval: 1            //展现当前点击节点的下N层
     };
 
+    SpaceTree.prototype.checkExist = function (id) {
+        for (var i = 0; i < this.nodes.length; i++) {
+            if (this.nodes[i].getId() === id) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    //加载数据，初始化dataLoader对象 并且生成对应的node对象
     SpaceTree.prototype.loadData = function (jsonData) {
         var thisobj = this,
             data = jsonData || [],
@@ -300,11 +392,20 @@
         thisobj.dataLoader.init(jsonData);
 
         for (var i = 0, ch = data.length; i < ch; i++) {
-            node = new Node(thisobj.options.node);
-            node.setData(data[i]);
-            thisobj.nodes.push(node);
+            if (!thisobj.checkExist(data[i].id)) {
+                node = new Node(thisobj.options.node);
+                node.setData(data[i]);
+                thisobj.nodes.push(node);
+            }
         }
+        return thisobj;
     };
+
+    /**
+     * 通过nodeid 得到 node对象
+     * @param id
+     * @returns {*}
+     */
 
     SpaceTree.prototype.getNodeById = function (id) {
         for (var i = 0, ch = this.nodes.length; i < ch; i++) {
@@ -315,12 +416,19 @@
         return null;
     };
 
+    /**
+     * 点击某个节点默认的触发函数
+     * @param id
+     */
     SpaceTree.prototype.onclick = function (id) {
         this.clickNodeId = id;
-        this.draw();
+        this.reDraw(this.clickNodeId);
     };
 
-
+    /**
+     * 页面初次加载使用这个函数
+     * @param jsonData
+     */
     SpaceTree.prototype.draw = function (jsonData) {
         if (jsonData) {
             this.loadData(jsonData);
@@ -331,18 +439,13 @@
         thisobj.paper.clear();
         thisobj.selefContainer.innerHTML = "";
 
-        thisobj.drawNode();
-
-        thisobj.drawEdge();
+        thisobj.drawAllShowNodes();
 
         thisobj.justifyTheContainer();
     };
 
-    SpaceTree.prototype.reDraw = function () {
 
-    };
-
-    SpaceTree.prototype.drawNode = function () {
+    SpaceTree.prototype.drawAllShowNodes = function () {
         var thisobj = this,
             allNodes = thisobj.nodes,
             showNodeIds = thisobj.dataLoader.getShowNodeIds(thisobj.clickNodeId),
@@ -352,8 +455,70 @@
             if ($.indexOf(showNodeIds, allNodes[i].getId()) >= 0) {
                 node = allNodes[i];
                 thisobj.drawEachNode(node);
+                thisobj.drawEachEdge(node);
             }
         }
+    };
+
+    SpaceTree.prototype.addLoadData = function (data) {
+        var thisobj = this;
+        thisobj.dataLoader.addData(data);
+
+        for (var i = 0, ch = data.length; i < ch; i++) {
+            if (!thisobj.checkExist(data[i].id)) {
+                node = new Node(thisobj.options.node);
+                node.setData(data[i]);
+                thisobj.nodes.push(node);
+            }
+        }
+
+        return this;
+    };
+
+    /**
+     * 只刷新这个节点之后的展现
+     * @param clickId
+     */
+    SpaceTree.prototype.reDraw = function (clickId) {
+        var clicked = clickId || this.clickNodeId,
+            dataLoader = this.dataLoader,
+            depth = dataLoader.getNodeDepth(clickId),
+            delObjArr = [],
+            node, i;
+
+        if (clicked) {
+            this.clickNodeId = clicked;
+        } else {
+            return;
+        }
+
+        if (depth === 0) {
+            delObjArr = dataLoader.removeBebindData(1);
+        } else {
+            delObjArr = dataLoader.removeBebindData(depth);
+        }
+
+        for (i = 0; i < delObjArr.length; i++) {
+            if (delObjArr[i].remove) {
+                delObjArr[i].remove();
+            }
+        }
+
+        if (depth !== 0) {
+            console.log(this.getNodeById(clicked));
+            var childrenIds = dataLoader.getChildrenNodeIds(clicked),
+                allNodes = this.nodes;
+
+            for (i = 0; i < allNodes.length; i++) {
+                if ($.indexOf(childrenIds, allNodes[i].getId()) >= 0) {
+                    node = allNodes[i];
+                    this.drawEachNode(node);
+                    this.drawEachEdge(node);
+                }
+            }
+        }
+
+        this.justifyTheContainer();
     };
 
     SpaceTree.prototype.drawEachNode = function (node) {
@@ -365,6 +530,7 @@
             clickFlowNodeIds = dataLoader.getClickFlowNodeIds(thisobj.clickNodeId),
             selected = $.indexOf(clickFlowNodeIds, nodeid) >= 0,
             childrenNodeIds = dataLoader.getChildrenNodeIds(nodeid),
+            depth = dataLoader.getNodeDepth(nodeid),
             hasChild = childrenNodeIds.length > 0;
 
         function setNodeProperties(node) {
@@ -405,9 +571,11 @@
 
         var pos = thisobj.getNodePosition(node);
 
-        var retct = paper.rect(pos.x, pos.y, node.getWidth(), node.getHeight());
+        var rect = paper.rect(pos.x, pos.y, node.getWidth(), node.getHeight());
 
-        retct.attr({"fill": node.getFill(), "stroke-width": node.getStrokeWidth()});
+        rect.attr({"fill": node.getFill(), "stroke-width": node.getStrokeWidth()}).data("id", nodeid);
+
+        dataLoader.addItemToShowMap(depth, rect);
 
         var selefContainer = thisobj.selefContainer;
 
@@ -416,6 +584,7 @@
         nodeLable.style.position = "absolute";
         nodeLable.style.left = pos.x + "px";
         nodeLable.style.top = pos.y + "px";
+        nodeLable.attributes["data-id"] = node.getId();
 
         if (thisobj.options.setNodeLabelHtml) {
             thisobj.options.setNodeLabelHtml(node, nodeLable);
@@ -439,6 +608,8 @@
             }
         }
 
+        dataLoader.addItemToShowMap(depth, nodeLable);
+
         selefContainer.appendChild(nodeLable);
     };
 
@@ -447,7 +618,6 @@
         var thisobj = this,
             distance = thisobj.options.distance,
             space = thisobj.options.spacing,
-            paper = thisobj.paper,
             dataLoader = thisobj.dataLoader,
             node_id = node.getId(),
             depth = dataLoader.getNodeDepth(node_id),
@@ -456,7 +626,7 @@
             size = peerids.length,
             index = $.indexOf(peerids, node_id),
             node_width = node.getWidth(),
-            pos = {};
+            pos = {}, i;
 
         if (depth === 0) {
             //根节点
@@ -466,7 +636,7 @@
                 parentPos = parentNode.getPosition(),
                 currentNodesHeight = 0;
 
-            for (var i = 0; i < size; i++) {
+            for (i = 0; i < size; i++) {
                 currentNodesHeight += thisobj.getNodeById(peerids[i]).getHeight() + ((i === size - 1) ? 0 : space);
             }
 
@@ -486,32 +656,16 @@
 
             } else {
                 var startNode = thisobj.getNodeById(peerids[0]),
-                    startPosition = startNode.getPosition(),
-                    startY = startPosition.y;
+                    startPosition = startNode.getPosition();
+                pos.y = startPosition.y;
 
-                pos.y = startY;
-
-                for (var i = 0; i < index; i++) {
+                for (i = 0; i < index; i++) {
                     pos.y += thisobj.getNodeById(peerids[i]).getHeight() + space;
                 }
             }
         }
         node.pos = pos;
         return pos;
-    };
-
-    SpaceTree.prototype.drawEdge = function () {
-        var thisobj = this,
-            allNodes = thisobj.nodes,
-            showNodeIds = thisobj.dataLoader.getShowNodeIds(thisobj.clickNodeId),
-            node;
-
-        for (var i = 0, ch = allNodes.length; i < ch; i++) {
-            if ($.indexOf(showNodeIds, allNodes[i].getId()) >= 0) {
-                node = allNodes[i];
-                thisobj.drawEachEdge(node);
-            }
-        }
     };
 
     //节点之间的连线 如果是根节点不需要，子节点开始连向父节点
@@ -521,7 +675,9 @@
             nodeid = node.getId(),
             parentid = dataLoader.getParentNodeId(nodeid);
 
-        if (parentid) {
+        if (!parentid) {
+
+        } else {
             var parentNode = thisobj.getNodeById(parentid),
                 thisNode = thisobj.getNodeById(nodeid),
                 width = parentNode.getWidth(),
@@ -529,6 +685,7 @@
                 thisNodeHeight = thisNode.getHeight(),
                 peerNodeIds = dataLoader.getPeerNodeIds(nodeid),
                 index = $.indexOf(peerNodeIds, nodeid),
+                depth = dataLoader.getNodeDepth(nodeid),
                 clickFlowNodeIds = dataLoader.getClickFlowNodeIds(thisobj.clickNodeId),
                 clickNodeChildren = dataLoader.getChildrenNodeIds(thisobj.clickNodeId),
                 paper = thisobj.paper;
@@ -571,10 +728,10 @@
                     return retProp;
                 }
                  */
-
+                var props;
                 //如果该节点是 该层节点的首节点， 并且有设置出口属性的callback 设置一下父节点的出口  该节点的出口  需要下级子节点同理设置
                 if (thisobj.options.getNodeExitProperties && index === 0) {
-                    var props = thisobj.options.getNodeExitProperties(parentNode);
+                    props = thisobj.options.getNodeExitProperties(parentNode);
                     parentNode.exit = props;
                 }
 
@@ -583,7 +740,7 @@
                  * 方法和  getNodeExitProperties 类似
                  */
                 if (thisobj.options.getNodeEntranceProperties) {
-                    var props = thisobj.options.getNodeEntranceProperties(thisNode,parentNode,thisobj.getRate());
+                    props = thisobj.options.getNodeEntranceProperties(thisNode, parentNode, thisobj.getRate());
                     thisNode.entrance = $.extend(default_entrance, props);
                 }
             }
@@ -605,21 +762,17 @@
             var endX1 = endPos1.x,
                 endY1 = endPos1.y,
                 x0 = endX1 - (endPos1.x - startPos1.x) / 4,
-                y0 = endY1,
-                x1 = x0,
                 y1 = endY1 + (startPos1.y - endPos1.y) * 0.9,
                 startX1 = startPos1.x,
                 startY1 = startPos1.y,
-                x11 = x0,
                 y11 = startY1 + startHeightV - (startPos1.y - endPos1.y) * 0.1,
-                x00 = x0,
                 y00 = endPos2.y,
                 endX2 = endPos2.x,
                 endY2 = endPos2.y;
 
 
-            var connectPathStr = "M" + endX1 + "," + endY1 + "C" + x0 + "," + y0 + "," + x1 + "," + y1 + "," + startX1 + "," + startY1 +
-                "V" + startPos2.y + "C" + x11 + "," + y11 + "," + x00 + "," + y00 + "," + endX2 + "," + endY2;
+            var connectPathStr = "M" + endX1 + "," + endY1 + "C" + x0 + "," + endY1 + "," + x0 + "," + y1 + "," + startX1 + "," + startY1 +
+                "V" + startPos2.y + "C" + x0 + "," + y11 + "," + x0 + "," + y00 + "," + endX2 + "," + endY2;
 
             var connectFill = ($.indexOf(clickFlowNodeIds, nodeid) >= 0 || $.indexOf(clickNodeChildren, nodeid) >= 0) ? "#daecff" : "#F1F1F1";
 
@@ -627,7 +780,7 @@
                 /**
                  * example:
                  * 设置连线颜色
-                getEdgeFillColor:function (thisNode,parentNode) {
+                 getEdgeFillColor:function (thisNode,parentNode) {
                     var color = ["red","yellow","blue","gray","pink","green"];
                     var retColor = color[parseInt(Math.random()*6)];
                     console.log(parentNode.getId() + "->" + thisNode.getId(),retColor);
@@ -635,7 +788,7 @@
                 }
                  */
                 if (thisobj.options.getEdgeFillColor) {
-                    connectFill = thisobj.options.getEdgeFillColor(thisNode,parentNode);
+                    connectFill = thisobj.options.getEdgeFillColor(thisNode, parentNode);
                 }
             }
 
@@ -643,23 +796,36 @@
 
 
             //画连线
-            paper.path(connectPathStr).attr({
+            var rect_edge = paper.path(connectPathStr).attr({
                 'fill': connectFill,
                 "stroke-width": 0
-            });
+            }).data("id", nodeid);
+
+            dataLoader.addItemToShowMap(depth, rect_edge);
 
             //画入口小方块
             var entrancePathStr = "M" + endPos1.x + "," + (thisPos.y + thisNodeHeight / 2 - entrance.height / 2) + "H" + thisPos.x + "V" + (thisPos.y + thisNodeHeight / 2 + entrance.height / 2) + "H" + endPos1.x + "Z";
-            paper.path(entrancePathStr).attr({fill: entrance.color, "stroke-width": 0});
+            var rect_entracnce = paper.path(entrancePathStr).attr({
+                fill: entrance.color,
+                "stroke-width": 0
+            }).data("id", nodeid);
+            dataLoader.addItemToShowMap(depth, rect_entracnce);
 
             //画出口小方块
             if (index === 0) {
                 var exitPathStr = "M" + (startPos1.x - exit.width) + "," + (parentPos.y + parentHeight / 2 - exit.height / 2) + "H" + startPos1.x + "V" + (parentPos.y + parentHeight / 2 + exit.height / 2) + "H" + (startPos1.x - exit.width) + "Z";
-                paper.path(exitPathStr).attr({fill: exit.color, "stroke-width": 0});
+                var rect_exit = paper.path(exitPathStr).attr({
+                    fill: exit.color,
+                    "stroke-width": 0
+                }).data("id", parentid);
+                dataLoader.addItemToShowMap(depth, rect_exit);
             }
         }
     };
 
+    /**
+     * 将tree的展现 居中放到container中
+     */
     SpaceTree.prototype.justifyTheContainer = function () {
         var thisobj = this,
             dataLoader = thisobj.dataLoader,
