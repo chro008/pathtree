@@ -152,6 +152,7 @@
             var ismove = false,clickX,clickY;
             nodeLabel.onclick = function () {
                 if(ismove) {
+                    ismove = false;
                     alert("拖动事件，不再触发点击事件");
                 } else {
                     alert("刚刚点击了[" + node.getId() + "]");
@@ -177,4 +178,4 @@
 
 </script>
 </body>
-</html>  
+</html>
