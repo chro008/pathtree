@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<!-- saved from url=(0014)about:internet -->
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Raphael Test</title>
+    <style>
+        .label_container {
+            position: absolute;
+            /*width:100%;
+            height:100%;*/
+            left: 0;
+            top: 0;
+        }
+    </style>
+    <script src="sys.spacetree.js"></script>
+</head>
+<body>
+<div id="my-canvas" style="width:1000px;height:800px;padding:0;margin:0;cursor:auto;position: fixed;overflow: hidden;">
+</div>
+<!--some html doms-->
+<!--some scripts-->
+
+<script type="text/javascript" src="raphael.min.js"></script>
+<script type="text/javascript" src="sys.spacetree.js"></script>
+<script type="text/javascript">
+
+    var jsonData = [
+        {
+            id: "zero",
+            depth: 0,
+            data: {name: "root", age: 10, num: 100}
+        },
+        {
+            id: "first-0",
+            depth: 1,
+            data: {name: "第一级第0个", age: 10, num: 30},
+            parent: "zero"
+        },
+        {
+            id: "first-1",
+            depth: 1,
+            data: {name: "第一级第1个", age: 10, num: 20},
+            parent: "zero"
+        },
+        {
+            id: "first-2",
+            depth: 1,
+            data: {name: "第一级第2个", age: 10, num: 15},
+            parent: "zero"
+        },
+        {
+            id: "first-3",
+            depth: 1,
+            data: {name: "第一级第3个", age: 10, num: 10},
+            parent: "zero"
+        },
+        {
+            id: "first-4",
+            depth: 1,
+            data: {name: "第一级第4个", age: 10, num: 5},
+            parent: "zero"
+        },
+        {
+            id: "first-5",
+            depth: 1,
+            data: {name: "第一级第5个", age: 10, num: 3},
+            parent: "zero"
+        },
+        {
+            id: "first-6",
+            depth: 1,
+            data: {name: "第一级第6个", age: 10, num: 2},
+            parent: "zero"
+        },
+        {
+            id: "first-7",
+            depth: 1,
+            data: {name: "第一级第7个", age: 10, num: 1},
+            parent: "zero"
+        },
+        {
+            id: "second-0",
+            depth: 2,
+            data: {name: "第二级第0个", age: 10, num: 15},
+            parent: "first-0"
+        },
+        {
+            id: "second-1",
+            depth: 2,
+            data: {name: "第二级第1个", age: 10, num: 8},
+            parent: "first-0"
+        },
+        {
+            id: "second-2",
+            depth: 2,
+            data: {name: "第二级第2个", age: 10, num: 5},
+            parent: "first-0"
+        },
+        {
+            id: "second-3",
+            depth: 2,
+            data: {name: "第二级第3个", age: 10, num: 10},
+            parent: "first-1"
+        },
+        {
+            id: "second-4",
+            depth: 2,
+            data: {name: "第二级第4个", age: 10, num: 5},
+            parent: "first-1"
+        },
+        {
+            id: "second-5",
+            depth: 2,
+            data: {name: "第二级第5个", age: 10, num: 3},
+            parent: "first-2"
+        },
+        {
+            id: "second-6",
+            depth: 2,
+            data: {name: "第二级第6个", age: 10, num: 1},
+            parent: "first-2"
+        },
+        {
+            id: "third-0",
+            depth: 3,
+            data: {name: "第三级第0个", age: 10, num: 1},
+            parent: "second-0"
+        },
+        {
+            id: "third-1",
+            depth: 3,
+            data: {name: "第三级第1个", age: 10, num: 1},
+            parent: "second-0"
+        },
+        {
+            id: "forth-0",
+            depth: 4,
+            data: {name: "第4级第0个", age: 10, num: 1},
+            parent: "third-0"
+        }
+    ];
+
+    var st = new window.SpaceTree("my-canvas", {
+        getNodeRate: function (node, parentNode) {
+            var num1 = node.getData().data.num,
+                num2 = parentNode.getData().data.num;
+
+            node.setRate(num1 * 100 / num2);
+        },
+        addNodeLabelEvent: function (node, nodeLabel) {
+            var ismove = false,clickX,clickY;
+            nodeLabel.onclick = function () {
+                if(ismove) {
+                    alert("拖动事件，不再触发点击事件");
+                } else {
+                    alert("刚刚点击了[" + node.getId() + "]");
+                    st.onclick(node.getId())
+                }
+            };
+            nodeLabel.onmousedown = function (e) {
+                var event = e || window.event;
+                clickX = event.clientX;
+                clickY = event.clientY;
+            };
+            nodeLabel.onmouseup = function (e) {
+                var event = e || window.event;
+                if (clickX !== event.clientX || clickY !== event.clientY) {
+                    ismove = true;
+                }
+            };
+        }
+    });
+
+    st.loadData(jsonData);
+    st.draw();
+
+</script>
+</body>
+</html>  
