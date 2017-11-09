@@ -118,13 +118,48 @@
     ];
 
     var st = new window.SpaceTree("my-canvas", {
+        animate:true,
+        duration:200,
         getNodeRate: function (node, parentNode) {
             var num1 = node.getData().data.num,
                 num2 = parentNode.getData().data.num;
 
             return num1 * 100 / num2;
         },
-        addNodeLabelEvent: function (node, nodeLabel) {
+        getEdgeFillColor: function (thisNode, parentNode) {
+            var colors = ["red", "yellow", "blue", "gray", "pink", "green"];
+            var retColor = colors[parseInt(Math.random() * 6)];
+            console.log(parentNode.getId() + "->" + thisNode.getId(), retColor);
+            return retColor;
+        },
+        getNodeExitProperties: function (node) {
+            var props = [
+                {width: 20, height: 20, color: "blue", pipe_height: 10},
+                {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
+                {width: 15, height: 10, color: "red", pipe_height: 7}];
+            var retProp = props[parseInt(Math.random() * 3)];
+            console.log(node.getId() + "出口属性：", retProp);
+            return retProp;
+        },
+        getNodeColor: function (node, selected, hasChild) {
+            if (selected) {
+                console.log("node[" + node.getId() + "] is selected,color is:E4393C");
+                return "#E4393C";
+            } else if (hasChild) {
+                console.log("node[" + node.getId() + "] not selected but has children,color is:9AC3FF");
+                return "#9AC3FF";
+            } else {
+                console.log("node[" + node.getId() + "] not selected nor has children,color is:C2CDF8");
+                return "#C2CDF8";
+            }
+        },
+        setNodeLabelHtml: function (node, nodeLabel) {
+            var nodeid = node.getId();
+            var data = node.getData().data.name;
+            nodeLabel.innerHTML = "<div style='font-size: 12px;line-height: 20px;height: 20px;width: 100%;'>" +
+                "<span style='margin-left: 6px;'>" + nodeid + "：" + data + "</span></div>";
+        },
+        addNodeLabelEventListener: function (node, nodeLabel) {
             var ismove = false, clickX, clickY;
             nodeLabel.onclick = function () {
                 if (ismove) {
@@ -132,7 +167,7 @@
                     console.log("拖动事件，不再触发点击事件");
                 } else {
                     console.log("刚刚点击了[" + node.getId() + "]");
-                    if(node.getId() === "third-1") {
+                    if (node.getId() === "third-1") {
                         st.addLoadData([{
                             id: "forth-1",
                             data: {name: "第4级第2个", age: 10, num: 1},
@@ -154,33 +189,6 @@
                 }
             };
         },
-        getEdgeFillColor: function (thisNode, parentNode) {
-            var colors = ["red", "yellow", "blue", "gray", "pink", "green"];
-            var retColor = colors[parseInt(Math.random() * 6)];
-            console.log(parentNode.getId() + "->" + thisNode.getId(), retColor);
-            return retColor;
-        },
-        getNodeExitProperties: function (node) {
-            var props = [
-                {width: 20, height: 20, color: "blue", pipe_height: 10},
-                {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
-                {width: 15, height: 10, color: "red", pipe_height: 7}];
-            var retProp = props[parseInt(Math.random() * 3)];
-            console.log(node.getId() + "出口属性：", retProp);
-            return retProp;
-        },
-        getNodeColor: function (node, selected, hasChild) {
-            if(selected) {
-                console.log("node["+node.getId()+"] is selected,color is:E4393C");
-                return "#E4393C";
-            } else if(hasChild){
-                console.log("node["+node.getId()+"] not selected but has children,color is:9AC3FF");
-                return "#9AC3FF";
-            } else {
-                console.log("node["+node.getId()+"] not selected nor has children,color is:C2CDF8");
-                return "#C2CDF8";
-            }
-        }
     });
 
     //st.loadData(jsonData).draw();

@@ -27,6 +27,43 @@
         }
     };
 
+    $.fadeIn = function (el, time) {
+        if (el.style.opacity === "") {
+            el.style.opacity = 0;
+        }
+        if (el.style.display === "" || el.style.display === 'none') {
+            el.style.display = 'block';
+        }
+
+        var t = setInterval(function () {
+            if (el.style.opacity < 1) {
+                el.style.opacity = parseFloat(el.style.opacity) + 0.1;
+            }
+            else {
+                clearInterval(t);
+            }
+        }, time / 10);
+    };
+
+    $.fadeOut = function (el, time) {
+        if (el.style.opacity === "") {
+            el.style.opacity = 1;
+        }
+        if (el.style.display === "" || el.style.display === 'none') {
+            el.style.display = 'block';
+        }
+
+        var t = setInterval(function () {
+            if (el.style.opacity > 0) {
+                el.style.opacity = parseFloat(el.style.opacity) - 0.1;
+            }
+            else {
+                clearInterval(t);
+                el.style.display = 'none'
+            }
+        }, time / 10);
+    };
+
 
     /**
      * 节点对象
@@ -312,10 +349,14 @@
 		height,
 		...
 	},
+     animate:false,     //是否增加动画，默认无
+     duration:500,      //动画时间  单位 ms       建议不要高于500
      distance:num,   //父级节点和子节点之间的距离 默认110
      spacing:num,   //同级别节点之间的距离   默认10
      getNodeXXX:function(node),           // 可以根据node  获取到node对象的属性，也可以设置其属性，如设置node的颜色等 可以设置节点的 rate，影响连线入口小方块的高度 以及 入口管子的高度；以及连线的颜色等
      getNodeHeight、getNodeColor、getNodeRate、getNodeExitProperties、getNodeEntraceProperties、getEdgeFillColor
+     setNodeXXX:
+     setNodeLabelHtml、setNodeLabelStyle、addNodeLabelEventListener
      **/
 
 
@@ -501,6 +542,10 @@
         for (i = 0; i < delObjArr.length; i++) {
             if (delObjArr[i].remove) {
                 delObjArr[i].remove();
+            } else {
+                if (delObjArr[i].parentNode) {
+                    delObjArr[i].parentNode.removeChild(delObjArr[i]);
+                }
             }
         }
 
@@ -571,46 +616,86 @@
 
         var pos = thisobj.getNodePosition(node);
 
-        var rect = paper.rect(pos.x, pos.y, node.getWidth(), node.getHeight());
+        var drawWith = node.getWidth(),
+            drawHeight = node.getHeight(),
+            posX = pos.x,
+            posY = pos.y,
+            animate = thisobj.options.animate,
+            duration = thisobj.options.duration || 200;
 
-        rect.attr({"fill": node.getFill(), "stroke-width": node.getStrokeWidth()}).data("id", nodeid);
+        if (animate) {
+            drawWith = drawHeight = posX = posY = 0;
+            var parentid = dataLoader.getParentNodeId(nodeid);
+            if (parentid) {
+                var parentNode = thisobj.getNodeById(parentid);
+                posX = parentNode.getPosition().x;
+                posY = parentNode.getPosition().y;
+            }
+        }
+
+        var rect = paper.rect(posX, posY, drawWith, drawHeight).attr({
+            "fill": node.getFill(),
+            "stroke-width": node.getStrokeWidth()
+        }).data("nodeid", nodeid);
+
+        if (animate) {
+            rect.animate({width: node.getWidth(), height: node.getHeight(), x: pos.x, y: pos.y}, duration);
+        }
 
         dataLoader.addItemToShowMap(depth, rect);
 
         var selefContainer = thisobj.selefContainer;
 
         var nodeLable = document.createElement("div");
+
         nodeLable.className = "node";
         nodeLable.style.position = "absolute";
         nodeLable.style.left = pos.x + "px";
         nodeLable.style.top = pos.y + "px";
-        nodeLable.attributes["data-id"] = node.getId();
+        nodeLable.setAttribute("nodeid", node.getId());
 
-        if (thisobj.options.setNodeLabelHtml) {
-            thisobj.options.setNodeLabelHtml(node, nodeLable);
-        } else {
-            nodeLable.innerHTML = node.getId();
-        }
 
-        if (thisobj.options.addNodeLabelStyle) {
-            thisobj.options.addNodeLabelStyle(node, selected, nodeLable, hasChild);
-        } else {
-            nodeLable.style.height = node.getHeight() + "px";
-            nodeLable.style.width = node.getWidth() + "px";
-            nodeLable.style.cursor = "pointer";
-        }
-
-        if (thisobj.options.addNodeLabelEvent) {
-            thisobj.options.addNodeLabelEvent(node, nodeLable);
-        } else {
-            nodeLable.onclick = function () {
-                thisobj.onclick(node.getId());
+        //设置nodeLabel 可以设置其内容  即html 也可以设置其样式
+        function setNodeLabel() {
+            if (thisobj.options.setNodeLabelHtml) {
+                thisobj.options.setNodeLabelHtml(node, nodeLable, selected, hasChild);
+            } else {
+                nodeLable.innerHTML = node.getId();
             }
+
+            if (thisobj.options.setNodeLabelStyle) {
+                thisobj.options.setNodeLabelStyle(node, nodeLable, selected, hasChild);
+            } else {
+                nodeLable.style.height = node.getHeight() + "px";
+                nodeLable.style.width = node.getWidth() + "px";
+                nodeLable.style.cursor = "pointer";
+            }
+
+            if (thisobj.options.addNodeLabelEventListener) {
+                thisobj.options.addNodeLabelEventListener(node, nodeLable, selected, hasChild);
+            } else {
+                nodeLable.onclick = function () {
+                    thisobj.onclick(node.getId());
+                }
+            }
+        }
+
+        setNodeLabel();
+
+        if (animate) {
+            nodeLable.style.display = "none";
         }
 
         dataLoader.addItemToShowMap(depth, nodeLable);
 
         selefContainer.appendChild(nodeLable);
+
+        if (animate) {
+            setTimeout(function () {
+                $.fadeIn(nodeLable, parseInt(duration / 2));
+            }, duration);
+        }
+
     };
 
 
@@ -771,8 +856,12 @@
                 endY2 = endPos2.y;
 
 
-            var connectPathStr = "M" + endX1 + "," + endY1 + "C" + x0 + "," + endY1 + "," + x0 + "," + y1 + "," + startX1 + "," + startY1 +
-                "V" + startPos2.y + "C" + x0 + "," + y11 + "," + x0 + "," + y00 + "," + endX2 + "," + endY2;
+            var connectPathStr = "M" + endX1 + "," + endY1 + "C" + x0 + "," + endY1 + "," + x0 + "," + y1 + "," + startX1 + "," + startY1 + "V" +
+                startPos2.y + "C" + x0 + "," + y11 + "," + x0 + "," + y00 + "," + endX2 + "," + endY2,
+
+                entrancePathStr = "M" + endPos1.x + "," + (thisPos.y + thisNodeHeight / 2 - entrance.height / 2) + "H" + thisPos.x + "V" +
+                    (thisPos.y + thisNodeHeight / 2 + entrance.height / 2) + "H" + endPos1.x + "Z";
+
 
             var connectFill = ($.indexOf(clickFlowNodeIds, nodeid) >= 0 || $.indexOf(clickNodeChildren, nodeid) >= 0) ? "#daecff" : "#F1F1F1";
 
@@ -794,30 +883,63 @@
 
             setEdgeProperties();
 
+            var drawConnectPathStr = connectPathStr,
+                drawEntrancePathStr = entrancePathStr,
+                animate = thisobj.options.animate,
+                duration = thisobj.options.duration,
+                startPosStr = parentPos.x + "," + parentPos.y;
+
+            if (animate) {
+                drawConnectPathStr = "M" + startPosStr + "C" + startPosStr + "," + startPosStr + "," + startPosStr +
+                    "V" + parentPos.y + "C" + startPosStr + "," + startPosStr + "," + startPosStr;
+
+                drawEntrancePathStr = "M" + startPosStr + "H" + parentPos.x + "V" + parentPos.y + "H" + parentPos.x + "Z";
+            }
 
             //画连线
-            var rect_edge = paper.path(connectPathStr).attr({
+            var rect_edge = paper.path(drawConnectPathStr).attr({
                 'fill': connectFill,
                 "stroke-width": 0
-            }).data("id", nodeid);
+            }).data("nodeids", parentid + "-" + nodeid);
+
+            if (animate) {
+                rect_edge.animate({path: connectPathStr}, duration);
+            }
 
             dataLoader.addItemToShowMap(depth, rect_edge);
 
+
             //画入口小方块
-            var entrancePathStr = "M" + endPos1.x + "," + (thisPos.y + thisNodeHeight / 2 - entrance.height / 2) + "H" + thisPos.x + "V" + (thisPos.y + thisNodeHeight / 2 + entrance.height / 2) + "H" + endPos1.x + "Z";
-            var rect_entracnce = paper.path(entrancePathStr).attr({
+            var rect_entracnce = paper.path(drawEntrancePathStr).attr({
                 fill: entrance.color,
                 "stroke-width": 0
-            }).data("id", nodeid);
+            }).data("nodeid", nodeid);
+
+            if (animate) {
+                rect_entracnce.animate({path: entrancePathStr}, duration);
+            }
+
             dataLoader.addItemToShowMap(depth, rect_entracnce);
 
             //画出口小方块
             if (index === 0) {
-                var exitPathStr = "M" + (startPos1.x - exit.width) + "," + (parentPos.y + parentHeight / 2 - exit.height / 2) + "H" + startPos1.x + "V" + (parentPos.y + parentHeight / 2 + exit.height / 2) + "H" + (startPos1.x - exit.width) + "Z";
-                var rect_exit = paper.path(exitPathStr).attr({
+                var exitPathStr = "M" + (startPos1.x - exit.width) + "," + (parentPos.y + parentHeight / 2 - exit.height / 2) + "H" + startPos1.x + "V"
+                    + (parentPos.y + parentHeight / 2 + exit.height / 2) + "H" + (startPos1.x - exit.width) + "Z",
+                    drawExitPathStr = exitPathStr;
+
+                if (animate) {
+                    drawExitPathStr = "M" + startPosStr + "H" + parentPos.x + "V" + parentPos.y + "H" + parentPos.x + "Z";
+                }
+
+                var rect_exit = paper.path(drawExitPathStr).attr({
                     fill: exit.color,
                     "stroke-width": 0
-                }).data("id", parentid);
+                }).data("nodeid", parentid);
+
+                if (animate) {
+                    rect_exit.animate({path: exitPathStr}, duration);
+                }
+
                 dataLoader.addItemToShowMap(depth, rect_exit);
             }
         }
