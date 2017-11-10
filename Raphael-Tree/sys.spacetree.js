@@ -1,17 +1,17 @@
 (function (global) {
 
-    var $ = function (id) {
-        return document.getElementById(id);
+    var Util = {
+
     };
 
-    $.extend = function (original, extended) {
+    Util.extend = function (original, extended) {
         for (var key in (extended || {})) {
             original[key] = extended[key];
         }
         return original;
     };
 
-    $.indexOf = function (arr, item) {
+    Util.indexOf = function (arr, item) {
         if (arr && typeof arr === "object" && arr instanceof Array) {
             if (arr.length === 0) {
                 return -1;
@@ -27,7 +27,7 @@
         }
     };
 
-    $.fadeIn = function (el, time) {
+    Util.fadeIn = function (el, time) {
         if (el.style.opacity === "") {
             el.style.opacity = 0;
         }
@@ -45,33 +45,13 @@
         }, time / 10);
     };
 
-    $.fadeOut = function (el, time) {
-        if (el.style.opacity === "") {
-            el.style.opacity = 1;
-        }
-        if (el.style.display === "" || el.style.display === 'none') {
-            el.style.display = 'block';
-        }
-
-        var t = setInterval(function () {
-            if (el.style.opacity > 0) {
-                el.style.opacity = parseFloat(el.style.opacity) - 0.1;
-            }
-            else {
-                clearInterval(t);
-                el.style.display = 'none'
-            }
-        }, time / 10);
-    };
-
-
     /**
      * 节点对象
      * @type {{}}
      */
     function Node(properties) {
         var thisobj = this;
-        thisobj.properties = $.extend($.extend({}, thisobj.defaulProperties), properties || {});
+        thisobj.properties = Util.extend(Util.extend({}, thisobj.defaulProperties), properties || {});
         thisobj.pos = {x: 0, y: 0};
         thisobj.data = {};
     }
@@ -80,9 +60,10 @@
         defaulProperties: {
             width: 175,
             height: 56,
-            strokeWidth: 0,
             type: "rectangles",
-            fill: "#BDD8F3"
+            fill: "#D7E8F8",         //默认颜色  未被选中 且 有子节点
+            selectFill: "#9FCCFF",   //节点被选择的颜色
+            exitFill: "#F1F1F1"     //离开节点的颜色（没有子节点）
         },
         getPosition: function () {
             return this.pos;
@@ -96,17 +77,17 @@
         setHeight: function (height) {
             this.height = height;
         },
-        getStrokeWidth: function () {
-            return this.strokeWidth || this.properties.strokeWidth;
-        },
         getFill: function () {
             return this.fill || this.properties.fill;
         },
-        setFill: function (fill) {
-            this.fill = fill;
+        getSelectFil: function () {
+            return this.selectFill || this.properties.selectFill;
+        },
+        getExitFill: function () {
+            return this.exitFill || this.properties.exitFill;
         },
         setData: function (data) {
-            this.data = $.extend({}, data || {});
+            this.data = Util.extend({}, data || {});
         },
         getData: function () {
             return this.data;
@@ -119,6 +100,93 @@
         },
         setRate: function (rate) {
             this.rate = rate;
+        }
+    };
+
+    /**
+     * 连线对象
+     * @param properties
+     * @constructor
+     */
+    function Edge(properties) {
+        var thisobj = this;
+        thisobj.properties = Util.extend(Util.extend({}, thisobj.defaulProperties), properties || {});
+    }
+
+    Edge.prototype = {
+        defaulProperties: {
+            selectFill: "#BDD8F3",
+            unSelecttFill: "#F1F1F1"
+        },
+
+        getSelectFil: function () {
+            return this.selectFill || this.properties.selectFill;
+        },
+        getUnSelectFill: function () {
+            return this.unSelecttFill || this.properties.unSelecttFill;
+        }
+    };
+
+    /**
+     * 颜色管理对象
+     * @param properties
+     * @constructor
+     */
+    function ColorManager(properties) {
+        this.baseNode = new Node(properties.node || {});
+        this.baseEdge = new Edge(properties.edge || {});
+    }
+
+    ColorManager.prototype = {
+        getNodeFill: function () {
+            return this.nodefill || this.baseNode.getFill();
+        },
+        setNodeFill: function (fill) {
+            this.nodeFill = fill;
+        },
+        getNodeSelectFill: function () {
+            return this.nodeSelectFill || this.baseNode.getSelectFil();
+        },
+        setNodeSelectFill: function (fill) {
+            this.nodeSelectFill = fill;
+        },
+        getNodeExitFill: function () {
+            return this.nodeExitFill || this.baseNode.getExitFill();
+        },
+        setNodeExitFil: function (fill) {
+            this.nodeExitFill = fill;
+        },
+        getEdgeSelectFill: function () {
+            return this.edgeSelectFill || this.baseEdge.getSelectFil();
+        },
+        setEdgeSelectFill: function (fill) {
+            this.edgeSelectFill = fill;
+        },
+        getEdgeUnSelectFill: function () {
+            return this.edgeUnSelectFill || this.baseEdge.getUnSelectFill();
+        },
+        setEdgeUnSelectFill: function (fill) {
+            this.edgeUnSelectFill = fill;
+        },
+
+        getNodeColor: function (select, hasChildren) {
+            if (hasChildren) {
+                if (select) {
+                    return this.getNodeSelectFill();
+                } else {
+                    return this.getNodeFill();
+                }
+            } else {
+                return this.getNodeExitFill();
+            }
+        },
+
+        getEdgeColor: function (select) {
+            if (select) {
+                return this.getEdgeSelectFill();
+            } else {
+                return this.getEdgeUnSelectFill();
+            }
         }
     };
 
@@ -197,11 +265,33 @@
          * @param depth 深度  0-N
          * @param obj   该深度下展现的对象  包含 svg对象和dom对象  详情可见调用此方法的地方
          */
-        addItemToShowMap: function (depth, obj) {
+        addItemToShowMap: function (depth, obj, nodeid, type) {
             if (!this.showMap[depth]) {
                 this.showMap[depth] = [];
             }
-            this.showMap[depth].push(obj);
+
+            var item = {obj:obj,type:type,nodeid:nodeid};
+
+            this.showMap[depth].push(item);
+        },
+
+
+        /**
+         * 通过depth 得到raphael对象数组
+         * @param depth
+         * @returns {Array}
+         */
+        getShowItemsFromShowMap: function (depth) {
+            var thisobj = this,
+                items = thisobj.showMap[depth],
+                retItems = [];
+
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type !== "label") {
+                    retItems.push(items[i]);
+                }
+            }
+            return retItems;
         },
 
         /**
@@ -209,7 +299,7 @@
          * @param depth
          * @returns {Array} 返回这些展现的对象  包含svg对象和dom对象  均有 remove() 方法
          */
-        removeBebindData: function (depth) {
+        removeAndReturnBebindShowData: function (depth) {
             var objArr = [], tempArr;
             for (var key in this.showMap) {
                 if (parseInt(key) > depth) {
@@ -334,6 +424,13 @@
             }
             return depth;
 
+        },
+
+        /**
+         * 返回根节点的id
+         */
+        getRootId: function () {
+            return this.root.id;
         }
     };
 
@@ -344,34 +441,93 @@
 		width,      //画布的宽度
 		height,     //画布的高度         //如果不穿 默认是容器的宽高
 	},
-     node:{ //节点的属性        详见 Node类的options
+     node:{ //节点的属性        详见 Node类
 		width,
 		height,
 		...
 	},
+     edge:{  //连线的属性  详见Edge类
+        selectFill,
+        unSelectFill
+     }
      animate:false,     //是否增加动画，默认无
      duration:500,      //动画时间  单位 ms       建议不要高于500
      distance:num,   //父级节点和子节点之间的距离 默认110
      spacing:num,   //同级别节点之间的距离   默认10
      getNodeXXX:function(node),           // 可以根据node  获取到node对象的属性，也可以设置其属性，如设置node的颜色等 可以设置节点的 rate，影响连线入口小方块的高度 以及 入口管子的高度；以及连线的颜色等
-     getNodeHeight、getNodeColor、getNodeRate、getNodeExitProperties、getNodeEntraceProperties、getEdgeFillColor
+     getNodeHeight、getNodeRate、getNodeExitProperties、getNodeEntraceProperties
      setNodeXXX:
      setNodeLabelHtml、setNodeLabelStyle、addNodeLabelEventListener
      **/
 
-
     /**
      * 树对象
      * @type {window.SpaceTree}
+     * @returns {SpaceTree}
      */
     var SpaceTree = global.SpaceTree = function (container_id, options) {
         var thisobj = this,
             document = global.document || document;
 
         //树的容器
-        thisobj.container = $(container_id);
+        thisobj.container = document.getElementById(container_id);
+
+        thisobj.freshProperties(options);
+
+        thisobj.paper = Raphael(thisobj.container, thisobj.viewBox.w, thisobj.viewBox.h);
+        //盛放节点自定义文本的容器
+        thisobj.labelContainer = document.createElement("div");
+        thisobj.labelContainer.className = "st_label_container";
+        thisobj.labelContainer.style.position = "absolute";
+        thisobj.labelContainer.style.left = "0";
+        thisobj.labelContainer.style.top = "0";
+
+        thisobj.container.appendChild(thisobj.labelContainer);
+        //树的数据加载对象
+        thisobj.dataLoader = new DataLoader();
+
+        //树的所有节点
+        thisobj.nodes = [];
+        //树的点击节点
+        thisobj.clickNode = null;
+        //增加一些事件监听
+        thisobj.addEventListener();
+        return thisobj;
+    };
+
+    /**
+     * 树相关的 默认的全局属性
+     * @type {{paper: {}, node: {width: number, height: number, type: string, strokeWidth: number, fill: string}, direct: string, distance: number, spacing: number, leval: number}}
+     */
+    SpaceTree.prototype.globalData = {
+        paper: {    //画布默认属性
+
+        },
+        node: {     //节点的属性
+
+        },
+        edge: {},
+        animate: false,     //是否增加动画，默认无
+        duration: 200,      //动画时间  单位 ms       建议不要高于500
+        direct: "left",         //树方向 默认从左到右
+        distance: 110,          //上一级和下一级之间的距离
+        spacing: 10,            //同级之间的距离
+        leval: 1                //展现当前点击节点的下N层
+
+        /**
+         * direct、leval 以及 node的 strokeWidth、type 都是写死的，暂时不支持扩展，如果灵活点可以继续扩展，提供更多的功能和效果
+         */
+    };
+
+    /**
+     * 刷新树的属性
+     * @param properties
+     * @returns {boolean}
+     */
+    SpaceTree.prototype.freshProperties = function (properties) {
+        var thisobj = this;
         //树的配置信息
-        thisobj.options = $.extend($.extend({}, thisobj.globalData), options);
+        thisobj.options = Util.extend(Util.extend({}, thisobj.globalData), properties);
         //树的画布对象
         var paperOps = thisobj.options.paper;
         thisobj.viewBox = {
@@ -380,39 +536,15 @@
             w: paperOps.width || thisobj.container.clientWidth,
             h: paperOps.height || thisobj.container.clientHeight
         };
-        thisobj.paper = Raphael(thisobj.container, thisobj.viewBox.w, thisobj.viewBox.h);
-
-        thisobj.selefContainer = document.createElement("div");
-        thisobj.selefContainer.className = "label_container";
-        thisobj.container.appendChild(thisobj.selefContainer);
-        //树的数据加载对象
-        thisobj.dataLoader = new DataLoader();
-        //树的所有节点
-        thisobj.nodes = [];
-        //树的点击节点
-        thisobj.clickNode = null;
-
-        thisobj.addEventListener();
+        thisobj.colorManager = new ColorManager(thisobj.options);
+        return thisobj;
     };
 
-    SpaceTree.prototype.globalData = {
-        paper: {    //画布默认属性
-
-        },
-        node: {     //节点的属性
-            width: 175,
-            height: 56,
-            border: 0,
-            type: "rectangles",
-            strokeWidth: 0,
-            fill: "#BDD8F3"
-        },
-        direct: "left",     //树方向 默认从左到右，可选从上到下
-        distance: 110,       //上一级和下一级之间的距离
-        spacing: 10,        //同级之间的距离
-        leval: 1            //展现当前点击节点的下N层
-    };
-
+    /**
+     * 检查传入的id是否在树中的节点里已经存在
+     * @param id
+     * @returns {boolean}
+     */
     SpaceTree.prototype.checkExist = function (id) {
         for (var i = 0; i < this.nodes.length; i++) {
             if (this.nodes[i].getId() === id) {
@@ -422,14 +554,22 @@
         return false;
     };
 
-    //加载数据，初始化dataLoader对象 并且生成对应的node对象
+    /**
+     * 初始化树的dataLoader对象 并且生成节点，加到树对象的节点集合中
+     * @param jsonData 加载的数据
+     * @returns {SpaceTree}
+     */
     SpaceTree.prototype.loadData = function (jsonData) {
+        var thisobj = this;
+        return thisobj.freshData(jsonData);
+    };
+
+    SpaceTree.prototype.freshData = function (jsonData) {
         var thisobj = this,
             data = jsonData || [],
             node;
 
         thisobj.nodes = [];
-
         thisobj.dataLoader.init(jsonData);
 
         for (var i = 0, ch = data.length; i < ch; i++) {
@@ -458,51 +598,92 @@
     };
 
     /**
+     * @returns {*} 根节点的id
+     */
+    SpaceTree.prototype.getRootId = function () {
+        return this.dataLoader.getRootId();
+    };
+
+    SpaceTree.prototype.isRoot = function (nodeid) {
+        return (nodeid === this.getRootId());
+    };
+
+    /**
      * 点击某个节点默认的触发函数
      * @param id
+     * @returns {SpaceTree}
      */
     SpaceTree.prototype.onclick = function (id) {
         this.clickNodeId = id;
         this.reDraw(this.clickNodeId);
+        return this;
     };
 
     /**
-     * 页面初次加载使用这个函数
+     * 页面初次加载使用这个函数 或者 整体刷新树
      * @param jsonData
+     * @returns {SpaceTree}
      */
     SpaceTree.prototype.draw = function (jsonData) {
-        if (jsonData) {
-            this.loadData(jsonData);
-        }
-
         var thisobj = this;
-
+        if (jsonData) {
+            thisobj.loadData(jsonData);
+        }
+        /*清空画布*/
         thisobj.paper.clear();
-        thisobj.selefContainer.innerHTML = "";
-
+        /*清空自定义节点文本的容器*/
+        thisobj.labelContainer.innerHTML = "";
+        /*画所有的节点-》包含所有需要展现的节点 以及 需要的连线*/
         thisobj.drawAllShowNodes();
-
+        /*将画布和labelcontainer居中当前container*/
         thisobj.justifyTheContainer();
+        return thisobj;
     };
 
-
+    /**
+     * 所有需要展现的点都重画，一般用于页面第一次加载或者重新加载树图
+     * @returns {SpaceTree}
+     */
     SpaceTree.prototype.drawAllShowNodes = function () {
         var thisobj = this,
-            allNodes = thisobj.nodes,
             showNodeIds = thisobj.dataLoader.getShowNodeIds(thisobj.clickNodeId),
+            drawNodes = thisobj.getDrawNodes(showNodeIds);
+
+        for (var i = 0, ch = drawNodes.length; i < ch; i++) {
+            thisobj.drawEachNode(drawNodes[i]);
+            thisobj.drawEachEdge(drawNodes[i]);
+        }
+        return thisobj;
+    };
+
+    /**
+     * 通过当前需要画的节点的id 得到节点对象的集合
+     * @param ids
+     * @returns {Array}
+     */
+    SpaceTree.prototype.getDrawNodes = function (ids) {
+        var thisobj = this,
+            allNodes = thisobj.nodes,
+            drawNodes = [],
             node;
 
         for (var i = 0, ch = allNodes.length; i < ch; i++) {
-            if ($.indexOf(showNodeIds, allNodes[i].getId()) >= 0) {
+            if (Util.indexOf(ids, allNodes[i].getId()) >= 0) {
                 node = allNodes[i];
-                thisobj.drawEachNode(node);
-                thisobj.drawEachEdge(node);
+                drawNodes.push(node);
             }
         }
+        return drawNodes;
     };
 
+    /**
+     * 在原有的树上再增加节点数据，用于树节点数据从服务器获取的情况
+     * @param data
+     * @returns {SpaceTree}
+     */
     SpaceTree.prototype.addLoadData = function (data) {
-        var thisobj = this;
+        var thisobj = this,
+            node;
         thisobj.dataLoader.addData(data);
 
         for (var i = 0, ch = data.length; i < ch; i++) {
@@ -512,58 +693,125 @@
                 thisobj.nodes.push(node);
             }
         }
-
-        return this;
+        return thisobj;
     };
 
     /**
-     * 只刷新这个节点之后的展现
+     * 点击该节点之后，重画-》包含重画改点的子级别节点 以及该层节点 以及 该层节点和上层节点之间的连线
      * @param clickId
+     * @returns {SpaceTree}
      */
     SpaceTree.prototype.reDraw = function (clickId) {
-        var clicked = clickId || this.clickNodeId,
-            dataLoader = this.dataLoader,
-            depth = dataLoader.getNodeDepth(clickId),
-            delObjArr = [],
-            node, i;
+        var thisobj = this;
+        thisobj.freshFrontShowNodes(clickId);
+        thisobj.clickNodeId = clickId;
+        /*画所有的节点-》包含所有需要展现的节点 以及 需要的连线*/
+        thisobj.drawBebindShowNodes(clickId);
+        /*将画布和labelcontainer居中当前container*/
+        thisobj.justifyTheContainer();
+        return thisobj;
+    };
+
+    /**
+     * 点击节点之后 如果有设置 点击节点的颜色、点击路径连线颜色等 需要走这里
+     * @param clickid
+     * @returns {SpaceTree}
+     */
+    SpaceTree.prototype.freshFrontShowNodes = function (clickid) {
+        //如果点击的不是根节点 需要更新
+        if (clickid && !this.isRoot(clickid)) {
+            var thisobj = this,
+                dataLoader = thisobj.dataLoader,
+                colorManager = thisobj.colorManager,
+                depth = dataLoader.getNodeDepth(clickid),
+                relateItems = thisobj.dataLoader.getShowItemsFromShowMap(depth),
+                animate = thisobj.options.animate,
+                duration = thisobj.options.duration,
+                nodeid, item, select, hasChildren;
+
+            for (var i = 0, ch = relateItems.length; i < ch; i++) {
+                item = relateItems[i];
+                nodeid = item.nodeid;
+                select = (nodeid === clickid);
+                if (item.type === "edge") {
+                    if (animate) {
+                        item.obj.animate({"fill": colorManager.getEdgeColor(select)}, duration);
+                    } else {
+                        item.obj.attr("fill", colorManager.getEdgeColor(select));
+                    }
+                } else if (item.type === "node") {
+                    hasChildren = (dataLoader.getChildrenNodeIds(nodeid).length > 0);
+                    if (animate) {
+                        item.obj.animate({"fill": colorManager.getNodeColor(select, hasChildren)}, duration);
+                    } else {
+                        item.obj.attr("fill", colorManager.getNodeColor(select, hasChildren));
+                    }
+                }
+            }
+        }
+        return thisobj;
+    };
+
+    /**
+     * 只刷新这个节点之后的展现，一般用于点击某节点的情况
+     * @param clickId
+     * @returns {SpaceTree}
+     */
+    SpaceTree.prototype.drawBebindShowNodes = function (clickId) {
+        var thisobj = this,
+            clicked = clickId || thisobj.clickNodeId;
 
         if (clicked) {
-            this.clickNodeId = clicked;
+            thisobj.clickNodeId = clicked;
         } else {
-            return;
+            return thisobj;
         }
 
-        if (depth === 0) {
-            delObjArr = dataLoader.removeBebindData(1);
-        } else {
-            delObjArr = dataLoader.removeBebindData(depth);
-        }
+        var dataLoader = thisobj.dataLoader,
+            depth = dataLoader.getNodeDepth(clickId);
 
-        for (i = 0; i < delObjArr.length; i++) {
-            if (delObjArr[i].remove) {
-                delObjArr[i].remove();
-            } else {
-                if (delObjArr[i].parentNode) {
-                    delObjArr[i].parentNode.removeChild(delObjArr[i]);
-                }
-            }
-        }
+        /*去掉该点击节点之后的展现*/
+        thisobj.removeBehindShow(depth);
 
         if (depth !== 0) {
-            console.log(this.getNodeById(clicked));
             var childrenIds = dataLoader.getChildrenNodeIds(clicked),
-                allNodes = this.nodes;
+                drawNodes = thisobj.getDrawNodes(childrenIds);
 
-            for (i = 0; i < allNodes.length; i++) {
-                if ($.indexOf(childrenIds, allNodes[i].getId()) >= 0) {
-                    node = allNodes[i];
-                    this.drawEachNode(node);
-                    this.drawEachEdge(node);
-                }
+            for (var i = 0; i < drawNodes.length; i++) {
+                thisobj.drawEachNode(drawNodes[i]);
+                thisobj.drawEachEdge(drawNodes[i]);
             }
         }
 
-        this.justifyTheContainer();
+        return thisobj;
+    };
+
+    /**
+     * 删掉depth之后的展现
+     * @param depth
+     * @returns {SpaceTree}
+     */
+    SpaceTree.prototype.removeBehindShow = function (depth) {
+        var thisobj = this,
+            dataLoader = thisobj.dataLoader,
+            delObjArr = [];
+
+        if (depth === 0) {
+            delObjArr = dataLoader.removeAndReturnBebindShowData(1);
+        } else {
+            delObjArr = dataLoader.removeAndReturnBebindShowData(depth);
+        }
+
+        for (var i = 0; i < delObjArr.length; i++) {
+            if (delObjArr[i].obj.remove) {
+                delObjArr[i].obj.remove();
+            } else {
+                if (delObjArr[i].obj.parentNode) {
+                    delObjArr[i].obj.parentNode.removeChild(delObjArr[i].obj);
+                }
+            }
+        }
+        return thisobj;
     };
 
     SpaceTree.prototype.drawEachNode = function (node) {
@@ -571,9 +819,10 @@
             paper = thisobj.paper;
 
         var dataLoader = thisobj.dataLoader,
+            colorManager = thisobj.colorManager,
             nodeid = node.getId(),
             clickFlowNodeIds = dataLoader.getClickFlowNodeIds(thisobj.clickNodeId),
-            selected = $.indexOf(clickFlowNodeIds, nodeid) >= 0,
+            selected = Util.indexOf(clickFlowNodeIds, nodeid) >= 0,
             childrenNodeIds = dataLoader.getChildrenNodeIds(nodeid),
             depth = dataLoader.getNodeDepth(nodeid),
             hasChild = childrenNodeIds.length > 0;
@@ -585,28 +834,6 @@
              */
             if (thisobj.options.getNodeHeight) {
                 node.setHeight(thisobj.options.getNodeHeight(node));
-            }
-
-            /**
-             * example
-             * 设置node背景色
-             getNodeColor: function (node, selected, hasChild) {
-                if(selected) {
-                    console.log("node["+node.getId()+"] is selected,color is:E4393C");
-                    return "#E4393C";
-                } else if(hasChild){
-                    console.log("node["+node.getId()+"] not selected but has children,color is:9AC3FF");
-                    return "#9AC3FF";
-                } else {
-                    console.log("node["+node.getId()+"] not selected nor has children,color is:C2CDF8");
-                    return "#C2CDF8";
-                }
-            }
-             */
-            if (thisobj.options.getNodeColor) {
-                var color = thisobj.options.getNodeColor(node, selected, hasChild);
-                node.setFill(color);
-                //node.setFill("90-#fff:0-" + color);
             }
 
             //.....这里可以继续扩展 ，设置 node的属性
@@ -634,17 +861,32 @@
         }
 
         var rect = paper.rect(posX, posY, drawWith, drawHeight).attr({
-            "fill": node.getFill(),
-            "stroke-width": node.getStrokeWidth()
-        }).data("nodeid", nodeid);
+            "fill": colorManager.getNodeColor(selected, hasChild),
+            "stroke-width": 0
+        }).data("nodeid", nodeid).data("type", "node");
 
         if (animate) {
             rect.animate({width: node.getWidth(), height: node.getHeight(), x: pos.x, y: pos.y}, duration);
         }
 
-        dataLoader.addItemToShowMap(depth, rect);
+        dataLoader.addItemToShowMap(depth, rect, nodeid, "node");
+        thisobj.drawEachNodeLabel(node, selected, hasChild, depth, pos);
+    };
 
-        var selefContainer = thisobj.selefContainer;
+    /**
+     * 画每个节点的内容  可以自定义样式 内容  和事件 具体参考 setNodeLabelHtml setNodeLabelStyle addNodeLabelEventListener
+     * @param node
+     * @param selected
+     * @param hasChild
+     * @param depth
+     * @param pos
+     */
+    SpaceTree.prototype.drawEachNodeLabel = function (node, selected, hasChild, depth, pos) {
+        var thisobj = this,
+            dataLoader = thisobj.dataLoader,
+            animate = thisobj.options.animate,
+            duration = thisobj.options.duration || 200;
+        var labelContainer = thisobj.labelContainer;
 
         var nodeLable = document.createElement("div");
 
@@ -686,18 +928,16 @@
             nodeLable.style.display = "none";
         }
 
-        dataLoader.addItemToShowMap(depth, nodeLable);
+        dataLoader.addItemToShowMap(depth, nodeLable, node.getId(), "label");
 
-        selefContainer.appendChild(nodeLable);
+        labelContainer.appendChild(nodeLable);
 
         if (animate) {
             setTimeout(function () {
-                $.fadeIn(nodeLable, parseInt(duration / 2));
+                Util.fadeIn(nodeLable, parseInt(duration / 2));
             }, duration);
         }
-
     };
-
 
     SpaceTree.prototype.getNodePosition = function (node) {
         var thisobj = this,
@@ -709,7 +949,7 @@
             parentid = dataLoader.getParentNodeId(node_id),
             peerids = dataLoader.getPeerNodeIds(node_id),
             size = peerids.length,
-            index = $.indexOf(peerids, node_id),
+            index = Util.indexOf(peerids, node_id),
             node_width = node.getWidth(),
             pos = {}, i;
 
@@ -753,10 +993,11 @@
         return pos;
     };
 
-    //节点之间的连线 如果是根节点不需要，子节点开始连向父节点
+    //节点之间的连线 如果是根节点不需要，方向：子节点开始连向父节点
     SpaceTree.prototype.drawEachEdge = function (node) {
         var thisobj = this,
             dataLoader = thisobj.dataLoader,
+            colorManager = thisobj.colorManager,
             nodeid = node.getId(),
             parentid = dataLoader.getParentNodeId(nodeid);
 
@@ -769,7 +1010,7 @@
                 parentHeight = parentNode.getHeight(),
                 thisNodeHeight = thisNode.getHeight(),
                 peerNodeIds = dataLoader.getPeerNodeIds(nodeid),
-                index = $.indexOf(peerNodeIds, nodeid),
+                index = Util.indexOf(peerNodeIds, nodeid),
                 depth = dataLoader.getNodeDepth(nodeid),
                 clickFlowNodeIds = dataLoader.getClickFlowNodeIds(thisobj.clickNodeId),
                 clickNodeChildren = dataLoader.getChildrenNodeIds(thisobj.clickNodeId),
@@ -777,7 +1018,7 @@
 
             function setNodeData(thisNode, parentNode) {
                 /**
-                 * 设置node的流入比率  可能影响连线重点的粗细等
+                 * 设置node的流入比率  可能影响连线终点的粗细等
                  */
                 if (thisobj.options.getNodeRate) {
                     thisNode.setRate(thisobj.options.getNodeRate(thisNode, parentNode));
@@ -790,7 +1031,7 @@
 
             //默认的出口属性，包括出口的宽，高，颜色 以及管道出口的高度  （出口 指 从一个节点流出到子节点  的 流出位置  ）
             var default_exit = {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
-                default_entranceH = 0.2 * thisNodeHeight + (0.8 * thisNodeHeight / 100 ) * thisNode.getRate(),
+                default_entranceH = 0.2 * thisNodeHeight + (0.6 * thisNodeHeight / 100 ) * thisNode.getRate(),
                 default_entrace = {
                     width: 3,
                     height: default_entranceH,
@@ -809,7 +1050,6 @@
                         {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
                         {width: 15, height: 10, color: "red", pipe_height: 7}];
                     var retProp = props[parseInt(Math.random() * 3)];
-                    console.log(node.getId() + "出口属性：", retProp);
                     return retProp;
                 }
                  */
@@ -826,14 +1066,14 @@
                  */
                 if (thisobj.options.getNodeEntranceProperties) {
                     props = thisobj.options.getNodeEntranceProperties(thisNode, parentNode, thisobj.getRate());
-                    thisNode.entrance = $.extend(default_entrance, props);
+                    thisNode.entrance = Util.extend(default_entrance, props);
                 }
             }
 
             setNodePortProperties();
 
-            var entrance = $.extend(default_entrace, thisNode.entrance),                //入口小方块
-                exit = $.extend(default_exit, parentNode.exit),                         //出口小方块
+            var entrance = Util.extend(default_entrace, thisNode.entrance),                //入口小方块
+                exit = Util.extend(default_exit, parentNode.exit),                         //出口小方块
                 startHeightV = exit.pipe_height,
                 endHeightV = entrance.pipe_height;
 
@@ -862,26 +1102,8 @@
                 entrancePathStr = "M" + endPos1.x + "," + (thisPos.y + thisNodeHeight / 2 - entrance.height / 2) + "H" + thisPos.x + "V" +
                     (thisPos.y + thisNodeHeight / 2 + entrance.height / 2) + "H" + endPos1.x + "Z";
 
-
-            var connectFill = ($.indexOf(clickFlowNodeIds, nodeid) >= 0 || $.indexOf(clickNodeChildren, nodeid) >= 0) ? "#daecff" : "#F1F1F1";
-
-            function setEdgeProperties() {
-                /**
-                 * example:
-                 * 设置连线颜色
-                 getEdgeFillColor:function (thisNode,parentNode) {
-                    var color = ["red","yellow","blue","gray","pink","green"];
-                    var retColor = color[parseInt(Math.random()*6)];
-                    console.log(parentNode.getId() + "->" + thisNode.getId(),retColor);
-                    return retColor;
-                }
-                 */
-                if (thisobj.options.getEdgeFillColor) {
-                    connectFill = thisobj.options.getEdgeFillColor(thisNode, parentNode);
-                }
-            }
-
-            setEdgeProperties();
+            var selectState = (Util.indexOf(clickFlowNodeIds, nodeid) >= 0 || Util.indexOf(clickNodeChildren, nodeid) >= 0),
+                connectFill = colorManager.getEdgeColor(selectState);
 
             var drawConnectPathStr = connectPathStr,
                 drawEntrancePathStr = entrancePathStr,
@@ -900,26 +1122,26 @@
             var rect_edge = paper.path(drawConnectPathStr).attr({
                 'fill': connectFill,
                 "stroke-width": 0
-            }).data("nodeids", parentid + "-" + nodeid);
+            }).data("nodeids", parentid + "-" + nodeid).data("nodeid", nodeid).data("type", "edge");
 
             if (animate) {
                 rect_edge.animate({path: connectPathStr}, duration);
             }
 
-            dataLoader.addItemToShowMap(depth, rect_edge);
+            dataLoader.addItemToShowMap(depth, rect_edge, nodeid, "edge");
 
 
             //画入口小方块
             var rect_entracnce = paper.path(drawEntrancePathStr).attr({
                 fill: entrance.color,
                 "stroke-width": 0
-            }).data("nodeid", nodeid);
+            }).data("nodeid", nodeid).data("type", "entrance");
 
             if (animate) {
                 rect_entracnce.animate({path: entrancePathStr}, duration);
             }
 
-            dataLoader.addItemToShowMap(depth, rect_entracnce);
+            dataLoader.addItemToShowMap(depth, rect_entracnce, nodeid, "entrance");
 
             //画出口小方块
             if (index === 0) {
@@ -934,13 +1156,13 @@
                 var rect_exit = paper.path(drawExitPathStr).attr({
                     fill: exit.color,
                     "stroke-width": 0
-                }).data("nodeid", parentid);
+                }).data("nodeid", parentid).data("type", "exit");
 
                 if (animate) {
                     rect_exit.animate({path: exitPathStr}, duration);
                 }
 
-                dataLoader.addItemToShowMap(depth, rect_exit);
+                dataLoader.addItemToShowMap(depth, rect_exit, nodeid, "exit");
             }
         }
     };
@@ -951,7 +1173,7 @@
     SpaceTree.prototype.justifyTheContainer = function () {
         var thisobj = this,
             dataLoader = thisobj.dataLoader,
-            clickNodeId = thisobj.clickNodeId || dataLoader.root.id,
+            clickNodeId = thisobj.clickNodeId || thisobj.getRootId(),
             clickNode = thisobj.getNodeById(clickNodeId),
             depth = dataLoader.getNodeDepth(clickNodeId),
             cols = depth + 1,
@@ -998,8 +1220,8 @@
         viewBox.w = isNaN(w) ? viewBox.w : w;
         viewBox.h = isNaN(h) ? viewBox.h : h;
 
-        this.selefContainer.style.left = (0 - viewBox.x) + "px";
-        this.selefContainer.style.top = (0 - viewBox.y) + "px";
+        this.labelContainer.style.left = (0 - viewBox.x) + "px";
+        this.labelContainer.style.top = (0 - viewBox.y) + "px";
 
         paper.setViewBox(viewBox.x, viewBox.y, viewBox.w, viewBox.h);
     };
