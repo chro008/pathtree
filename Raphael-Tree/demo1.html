@@ -2,182 +2,211 @@
 <html>
 <!-- saved from url=(0014)about:internet -->
 <head>
+
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>Raphael Test</title>
+    <title>测试树图</title>
     <script type="text/javascript" src="raphael.min.js"></script>
     <script type="text/javascript" src="sys.spacetree.js"></script>
-
+	<style>
+	.autocut {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		-o-text-overflow: ellipsis;
+		-icab-text-overflow: ellipsis;
+		-khtml-text-overflow: ellipsis;
+		-moz-text-overflow: ellipsis;
+		-webkit-text-overflow: ellipsis;
+	}
+	</style>
 </head>
-<body>
+<body style="margin: 0;font: 12px Arial;color: #333333;">
+
 <div id="my-canvas" style="width:1000px;height:800px;padding:0;margin:0;cursor:auto;position: fixed;overflow: hidden;">
 </div>
 
 <script type="text/javascript">
 
     var jsonData = [
-        {
-            id: "zero",
-            data: {name: "root", age: 10, num: 100}
-        },
-        {
-            id: "first-0",
-            data: {name: "第一级第0个", age: 10, num: 30},
-            parent: "zero"
-        },
-        {
-            id: "first-1",
-            data: {name: "第一级第1个", age: 10, num: 20},
-            parent: "zero"
-        },
-        {
-            id: "first-2",
-            data: {name: "第一级第2个", age: 10, num: 15},
-            parent: "zero"
-        },
-        {
-            id: "first-3",
-            data: {name: "第一级第3个", age: 10, num: 10},
-            parent: "zero"
-        },
-        {
-            id: "first-4",
-            data: {name: "第一级第4个", age: 10, num: 5},
-            parent: "zero"
-        },
-        {
-            id: "first-5",
-            data: {name: "第一级第5个", age: 10, num: 3},
-            parent: "zero"
-        },
-        {
-            id: "first-6",
-            data: {name: "第一级第6个", age: 10, num: 2},
-            parent: "zero"
-        },
-        {
-            id: "first-7",
-            data: {name: "第一级第7个", age: 10, num: 1},
-            parent: "zero"
-        },
-        {
-            id: "second-0",
-            data: {name: "第二级第0个", age: 10, num: 15},
-            parent: "first-0"
-        },
-        {
-            id: "second-1",
-            data: {name: "第二级第1个", age: 10, num: 8},
-            parent: "first-0"
-        },
-        {
-            id: "second-2",
-            data: {name: "第二级第2个", age: 10, num: 5},
-            parent: "first-0"
-        },
-        {
-            id: "second-3",
-            data: {name: "第二级第3个", age: 10, num: 10},
-            parent: "first-1"
-        },
-        {
-            id: "second-4",
-            data: {name: "第二级第4个", age: 10, num: 5},
-            parent: "first-1"
-        },
-        {
-            id: "second-5",
-            data: {name: "第二级第5个", age: 10, num: 3},
-            parent: "first-2"
-        },
-        {
-            id: "second-6",
-            data: {name: "第二级第6个", age: 10, num: 1},
-            parent: "first-2"
-        },
-        {
-            id: "third-0",
-            data: {name: "第三级第0个", age: 10, num: 1},
-            parent: "second-0"
-        },
-        {
-            id: "third-1",
-            data: {name: "第三级第1个", age: 10, num: 1},
-            parent: "second-0"
-        },
-        {
-            id: "forth-0",
-            data: {name: "第4级第0个", age: 10, num: 1},
-            parent: "third-0"
-        }
-    ];
-
-    var st = new window.SpaceTree("my-canvas", {
-        animate:true,
-        getNodeRate: function (node, parentNode) {
-            var num1 = node.getData().data.num,
-                num2 = parentNode.getData().data.num;
-
-            return num1 * 100 / num2;
-        },
-        getNodeHeight:function(node){
-            if(st.isRoot(node.getId())) {
-                return "120";
-            } else {
-                return node.getHeight();
+            {
+                id: "zero",
+                data: {name: "网站首页", uvsum: 23562, exituvsum: 9450}
+            },
+            {
+                id: "first-0",
+                data: {name: "站内检索", uvsum: 4440, exituvsum: 1841, avgtime: "05:24"},
+                parent: "zero"
+            },
+            {
+                id: "first-1",
+                data: {name: "主会场", uvsum: 2093, exituvsum: 546, avgtime: "09:16"},
+                parent: "zero"
+            },
+            {
+                id: "first-2",
+                data: {name: "产品内容页", uvsum: 1928, exituvsum: 1600, avgtime: "08:59"},
+                parent: "zero"
+            },
+            {
+                id: "first-3",
+                data: {name: "登入页面", uvsum: 1532, exituvsum: 1485, avgtime: "04:38"},
+                parent: "zero"
+            },
+            {
+                id: "first-4",
+                data: {name: "爱好类目页", uvsum: 1523, exituvsum: 455, avgtime: "04:52"},
+                parent: "zero"
+            },
+            {
+                id: "first-5",
+                data: {
+                    name: "http://shop.lbsky.com/brand-381/activity-2254.htm",
+                    uvsum: 1381,
+                    exituvsum: 778,
+                    avgtime: "10:11"
+                },
+                parent: "zero"
+            },
+            {
+                id: "first-6",
+                data: {name: "兴趣类目页", uvsum: 1332, exituvsum: 167, avgtime: "10:11"},
+                parent: "zero"
+            },
+            {
+                id: "first-7",
+                data: {name: "分会场", uvsum: 912, exituvsum: 411, avgtime: "10:11"},
+                parent: "zero"
+            },
+            {
+                id: "second-0",
+                data: {name: "产品内容页", uvsum: 2187, exituvsum: 1597, avgtime: "10:11"},
+                parent: "first-0"
+            },
+            {
+                id: "second-1",
+                data: {name: "网站首页", uvsum: 324, exituvsum: 34, avgtime: "10:11"},
+                parent: "first-0"
+            },
+            {
+                id: "second-2",
+                data: {name: "产品内容页", uvsum: 1030, exituvsum: 836, avgtime: "10:11"},
+                parent: "first-1"
+            },
+            {
+                id: "second-3",
+                data: {name: "http://sale.lbsky.com/draw.htm", uvsum: 301, exituvsum: 117, avgtime: "10:11"},
+                parent: "first-1"
+            },
+            {
+                id: "second-4",
+                data: {name: "http://sale.lbsky.com/draw.htm", uvsum: 258, exituvsum: 248, avgtime: "10:11"},
+                parent: "first-1"
+            },
+            {
+                id: "second-5",
+                data: {name: "我的购物车", uvsum: 115, exituvsum: 43, avgtime: "10:11"},
+                parent: "first-2"
+            },
+            {
+                id: "second-6",
+                data: {name: "产品内容页", uvsum: 341, exituvsum: 279, avgtime: "10:11"},
+                parent: "first-4"
+            },
+            {
+                id: "third-0",
+                data: {name: "站内搜索", uvsum: 225, exituvsum: 41, avgtime: "10:11"},
+                parent: "second-0"
+            },
+            {
+                id: "third-1",
+                data: {name: "我的购物车", uvsum: 126, exituvsum: 51, avgtime: "10:11"},
+                parent: "second-0"
+            },
+            {
+                id: "third-2",
+                data: {name: "登入页面", uvsum: 120, exituvsum: 107, avgtime: "10:11"},
+                parent: "second-0"
+            },
+            {
+                id: "third-3",
+                data: {name: "网站首页", uvsum: 41, exituvsum: 7, avgtime: "10:11"},
+                parent: "second-0"
             }
-        },
-        /*
-        getNodeExitProperties: function (node) {
-            var props = [
-                {width: 20, height: 20, color: "blue", pipe_height: 10},
-                {width: 10, height: 18.5, color: "#89B7E8", pipe_height: 4},
-                {width: 15, height: 10, color: "red", pipe_height: 7}];
-            return props[parseInt(Math.random() * 3)];
-        },*/
-        setNodeLabelHtml: function (node, nodeLabel) {
-            var nodeid = node.getId();
-            if(st.isRoot(nodeid)) {
-                nodeLabel.innerHTML = "<span style='width:100px;word-break: break-all;'>这是根节点，可以自定义随便的内容，你想定义什么就在这里写什么</span>";
-            } else {
-                var data = node.getData().data.name;
-                nodeLabel.innerHTML = "<div style='font-size: 12px;line-height: 20px;height: 20px;width: 100%;'>" +
-                    "<span style='margin-left: 6px;'>" + nodeid + "：" + data + "</span></div>";
-            }
+        ];
 
-        },
-        addNodeLabelEventListener: function (node, nodeLabel) {
-            var ismove = false, clickX, clickY;
-            nodeLabel.onclick = function () {
-                if (ismove) {
-                    ismove = false;
-                    console.log("拖动事件，不再触发点击事件");
-                } else {
-                    console.log("刚刚点击了[" + node.getId() + "]");
-                    if (node.getId() === "third-1") {
-                        st.addLoadData([{
-                            id: "forth-1",
-                            data: {name: "第4级第2个", age: 10, num: 1},
-                            parent: "third-1"
-                        }])
+        var st = new SpaceTree("my-canvas", {
+            animate: true,
+            node: {
+                height: 80,
+                width: 185,
+                selectFill: "#669fe1",
+                exitFill: "#ddd"
+            },
+            getNodeRate: function (node, parentNode) {
+                var rootNode = st.getNodeById(st.getRootId());
+                var totalUvusm = rootNode.getData().data.uvsum;
+                var uvsum = node.getData().data.uvsum;
+
+                return uvsum * 100 / totalUvusm;
+            },
+            getNodeEntranceProperties: function (thisNode) {
+                return {color: (thisNode.hasChildren ? "#89B7E8" : "#ccc")};
+            },
+            setNodeLabelHtml: function (node, parentNode) {
+                var nodeLabel = node.labelObj,
+                    data = node.getData().data,
+                    isRoot = st.isRoot(node.getId()),
+                    uvrate = "100%", exituvrate = "100%",
+                    color = node.selected && node.hasChildren ? "white" : "#333";
+                if (!isRoot) {
+                    var parentData = parentNode.getData().data;
+                    uvrate = ((data.uvsum * 100 / parentData.uvsum).toFixed(2) + "%");
+                    exituvrate = (data.exituvsum * 100 / data.uvsum).toFixed(2) + "%";
+                }
+                nodeLabel.innerHTML = "<div style='width:100%;line-height:20px;color:" + color + "'>" +
+                    "<div style='width:100%;' class='autocut' title='" + data.name + "'>&ensp;" + data.name + "</div>" +
+                    "<div style='width:100%;'>" +
+                    "<span style='width:47%;float:left;text-align:right;'>用户数：</span><span style='width:53%;float:left;'>" + (data.uvsum || 0) +
+                    (isRoot ? "" : ("(" + uvrate + ")")) + "</span>" +// 用户数/父节点用户数
+                    "<span style='width:47%;float:left;text-align:right;'>退出用户数：</span><span style='width:53%;float:left;'>" + (data.exituvsum || 0) + "(" + exituvrate + ")</span>" + // 退出/用户数
+                    (isRoot ? "" : (
+                        "<span style='width:47%;float:left;text-align:right;'>平均停留时间：</span><span style='width:53%;float:left;'>" + (data.avgtime || "00:00") + "</span>")) +
+                    "</div>";
+            },
+            freshNodeLabelCallBack: function (node, parentNode) {
+                var nodeLabel = node.labelObj,
+                    color = node.selected && node.hasChildren ? "white" : "#333";
+
+                nodeLabel.children[0].style.color = color;
+
+            },
+            addNodeLabelEventListener: function (node) {
+                var ismove = false, clickX, clickY,
+                    nodeLabel = node.labelObj;
+                nodeLabel.onclick = function () {
+                    if (ismove) {
+                        ismove = false;
+                    } else {
+
+
+                        st.onclick(node.getId())
                     }
-                    st.onclick(node.getId())
-                }
-            };
-            nodeLabel.onmousedown = function (e) {
-                var event = e || window.event;
-                clickX = event.clientX;
-                clickY = event.clientY;
-            };
-            nodeLabel.onmouseup = function (e) {
-                var event = e || window.event;
-                if (clickX !== event.clientX || clickY !== event.clientY) {
-                    ismove = true;
-                }
-            };
-        }
-    });
+                };
+                nodeLabel.onmousedown = function (e) {
+                    var event = e || window.event;
+                    clickX = event.clientX;
+                    clickY = event.clientY;
+                };
+                nodeLabel.onmouseup = function (e) {
+                    var event = e || window.event;
+                    if (clickX !== event.clientX || clickY !== event.clientY) {
+                        ismove = true;
+                    }
+                };
+            }
+        });
 
-    st.draw(jsonData);
+        st.draw(jsonData);
 
 </script>
 </body>
