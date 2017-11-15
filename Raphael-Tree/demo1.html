@@ -136,11 +136,29 @@
 
         var st = new SpaceTree("my-canvas", {
             animate: true,
+			 paper: {
+                left: 50
+            },
             node: {
                 height: 80,
                 width: 185,
                 selectFill: "#669fe1",
                 exitFill: "#ddd"
+            },
+			getNodeColorCallBack: function (node) {
+                var selected = node.selected;
+
+                var isRoot = st.isRoot(node.getId());
+                //有子节点 如果已经选择了 深蓝，未选择 蓝色；无子节点  灰色
+                if (node.hasChildren) {
+                    if (selected) {
+                        return "#669fe1";
+                    } else {
+                        return '#D7E8F8';
+                    }
+                } else {
+                    return "#ddd";
+                }
             },
             getNodeRate: function (node, parentNode) {
                 var rootNode = st.getNodeById(st.getRootId());
@@ -173,23 +191,28 @@
                         "<span style='width:47%;float:left;text-align:right;'>平均停留时间：</span><span style='width:53%;float:left;'>" + (data.avgtime || "00:00") + "</span>")) +
                     "</div>";
             },
-            freshNodeLabelCallBack: function (node, parentNode) {
-                var nodeLabel = node.labelObj,
-                    color = node.selected && node.hasChildren ? "white" : "#333";
-
-                nodeLabel.children[0].style.color = color;
-
+            setNodeLabelStyle: function (node) {
+                var nodeLabel = node.labelObj;
+                nodeLabel.children[0].style.color = node.selected && node.hasChildren ? "white" : "#333";
+                if (!node.hasChildren || st.clickNodeId === node.getId()) {
+                    nodeLabel.style.cursor = "default";
+                } else {
+                    nodeLabel.style.cursor = "pointer";
+                }
             },
             addNodeLabelEventListener: function (node) {
                 var ismove = false, clickX, clickY,
-                    nodeLabel = node.labelObj;
+                    nodeLabel = node.labelObj,
+					 nodeid = node.getId();
                 nodeLabel.onclick = function () {
                     if (ismove) {
                         ismove = false;
                     } else {
-
-
-                        st.onclick(node.getId())
+						//如果当前节点不是空节点， 并且未在点击路径上
+						var clickFlowNodeIds = st.dataLoader.getClickFlowNodeIds(st.clickNodeId);
+						if (node.hasChildren && clickFlowNodeIds.indexOf(nodeid) < 0) {
+							st.onclick(nodeid);
+						}
                     }
                 };
                 nodeLabel.onmousedown = function (e) {

@@ -97,8 +97,8 @@
         //树的画布对象
         var paperOps = thisobj.options.paper;
         thisobj.viewBox = {
-            x: 0,
-            y: 0,
+            x: -paperOps.left || 0,
+            y: -paperOps.top || 0,
             w: paperOps.width || thisobj.container.clientWidth,
             h: paperOps.height || thisobj.container.clientHeight
         };
@@ -136,6 +136,7 @@
             node;
 
         thisobj.nodes = [];
+
         thisobj.dataLoader.init(jsonData);
 
         for (var i = 0, ch = data.length; i < ch; i++) {
@@ -153,7 +154,6 @@
      * @param id
      * @returns {*}
      */
-
     SpaceTree.prototype.getNodeById = function (id) {
         for (var i = 0, ch = this.nodes.length; i < ch; i++) {
             if (this.nodes[i].getId() === id) {
@@ -181,13 +181,13 @@
      */
     SpaceTree.prototype.onclick = function (id) {
         this.clickNodeId = id;
-        this.freshAllShowNodesState();
         this.reDraw(this.clickNodeId);
         return this;
     };
 
     /**
      * 刷新所有节点的属性，selected,hasChildren
+     * @returns {SpaceTree}
      */
     SpaceTree.prototype.freshAllShowNodesState = function () {
         var thisobj = this,
@@ -201,6 +201,7 @@
             drawNodes[i].selected = (Util.indexOf(clickFlowNodeIds, drawNodes[i].getId()) >= 0);
         }
 
+        return thisobj;
     };
 
     /**
@@ -217,6 +218,7 @@
         thisobj.paper.clear();
         /*清空自定义节点文本的容器*/
         thisobj.labelContainer.innerHTML = "";
+        thisobj.clickNodeId = null;
         thisobj.freshAllShowNodesState();
         /*画所有的节点-》包含所有需要展现的节点 以及 需要的连线*/
         thisobj.drawAllShowNodes();
@@ -287,7 +289,12 @@
      * @returns {SpaceTree}
      */
     SpaceTree.prototype.reDraw = function (clickId) {
-        var thisobj = this;
+        var thisobj = this,
+            dataLoader = thisobj.dataLoader,
+            depth = dataLoader.getNodeDepth(clickId);
+        thisobj.freshAllShowNodesState();
+        /*去掉该点击节点之后的展现*/
+        thisobj.removeBehindShow(depth);
         thisobj.freshFrontShowNodes(clickId);
         thisobj.clickNodeId = clickId;
         /*画所有的节点-》包含所有需要展现的节点 以及 需要的连线*/
@@ -304,7 +311,7 @@
      */
     SpaceTree.prototype.freshFrontShowNodes = function (clickid) {
         //如果点击的不是根节点 需要更新
-        if (clickid && !this.isRoot(clickid)) {
+        if (clickid) {
             var thisobj = this,
                 dataLoader = thisobj.dataLoader,
                 colorManager = thisobj.colorManager,
@@ -312,18 +319,18 @@
                 relateItems = thisobj.dataLoader.getShowItemsFromShowMap(depth),
                 animate = thisobj.options.animate,
                 duration = thisobj.options.duration,
-                nodeid, item, selected, hasChildren, node;
+                nodeid, item, selected, hasChildren, node,
+                parentNode;
 
             for (var i = 0, ch = relateItems.length; i < ch; i++) {
                 item = relateItems[i];
                 nodeid = item.nodeid;
                 node = thisobj.getNodeById(nodeid);
                 selected = node.selected;
+                parentNode = thisobj.getNodeById(dataLoader.getParentNodeId(nodeid));
                 if (item.type === "label") {
-                    if(thisobj.options.freshNodeLabelCallBack) {
-                        var thisNode = thisobj.getNodeById(nodeid),
-                            parentNode = thisobj.getNodeById(dataLoader.getParentNodeId(nodeid));
-                        thisobj.options.freshNodeLabelCallBack(thisNode,parentNode);
+                    if (thisobj.options.setNodeLabelStyle) {
+                        thisobj.options.setNodeLabelStyle(node);
                     }
                 } else if (item.type === "edge") {
                     if (animate) {
@@ -333,10 +340,33 @@
                     }
                 } else if (item.type === "node") {
                     hasChildren = node.hasChildren;
+                    var color = colorManager.getNodeColor(selected, hasChildren);
+                    if (thisobj.options.getNodeColorCallBack) {
+                        color = thisobj.options.getNodeColorCallBack(node);
+                    }
+
                     if (animate) {
-                        item.obj.animate({"fill": colorManager.getNodeColor(selected, hasChildren)}, duration);
+                        item.obj.animate({"fill": color}, duration);
                     } else {
-                        item.obj.attr("fill", colorManager.getNodeColor(selected, hasChildren));
+                        item.obj.attr("fill", color);
+                    }
+                } else if (item.type === "entrance") {
+                    if (thisobj.options.getNodeEntranceProperties) {
+                        var props = thisobj.options.getNodeEntranceProperties(node, parentNode),
+                            default_entranceH = 0.2 * node.getHeight() + (0.6 * node.getHeight() / 100 ) * node.getRate(),
+                            default_entrance = {
+                                width: 3,
+                                height: default_entranceH,
+                                color: "#89B7E8",
+                                pipe_height: default_entranceH - 6
+                            };
+                        node.entrance = Util.extend(default_entrance, props);
+
+                        if (animate) {
+                            item.obj.animate({"fill": node.entrance.color}, duration);
+                        } else {
+                            item.obj.attr("fill", node.entrance.color);
+                        }
                     }
                 }
             }
@@ -359,20 +389,14 @@
             return thisobj;
         }
 
-        var dataLoader = thisobj.dataLoader,
-            depth = dataLoader.getNodeDepth(clickId);
+        var dataLoader = thisobj.dataLoader;
 
-        /*去掉该点击节点之后的展现*/
-        thisobj.removeBehindShow(depth);
+        var childrenIds = dataLoader.getChildrenNodeIds(clicked),
+            drawNodes = thisobj.getDrawNodes(childrenIds);
 
-        if (depth !== 0) {
-            var childrenIds = dataLoader.getChildrenNodeIds(clicked),
-                drawNodes = thisobj.getDrawNodes(childrenIds);
-
-            for (var i = 0; i < drawNodes.length; i++) {
-                thisobj.drawEachNode(drawNodes[i]);
-                thisobj.drawEachEdge(drawNodes[i]);
-            }
+        for (var i = 0; i < drawNodes.length; i++) {
+            thisobj.drawEachNode(drawNodes[i]);
+            thisobj.drawEachEdge(drawNodes[i]);
         }
 
         return thisobj;
@@ -450,8 +474,14 @@
             }
         }
 
+        var color = colorManager.getNodeColor(selected, hasChild);
+
+        if (thisobj.options.getNodeColorCallBack) {
+            color = thisobj.options.getNodeColorCallBack(node);
+        }
+
         var rect = paper.rect(posX, posY, drawWith, drawHeight).attr({
-            "fill": colorManager.getNodeColor(selected, hasChild),
+            "fill": color,
             "stroke-width": 0
         }).data("nodeid", nodeid).data("type", "node");
 
@@ -483,6 +513,9 @@
         nodeLable.style.left = pos.x + "px";
         nodeLable.style.top = pos.y + "px";
         nodeLable.setAttribute("nodeid", node.getId());
+        nodeLable.style.height = node.getHeight() + "px";
+        nodeLable.style.width = node.getWidth() + "px";
+        nodeLable.style.cursor = "pointer";
 
         node.labelObj = nodeLable;
 
@@ -498,10 +531,6 @@
 
             if (thisobj.options.setNodeLabelStyle) {
                 thisobj.options.setNodeLabelStyle(node);
-            } else {
-                nodeLable.style.height = node.getHeight() + "px";
-                nodeLable.style.width = node.getWidth() + "px";
-                nodeLable.style.cursor = "pointer";
             }
 
             if (thisobj.options.addNodeLabelEventListener) {
@@ -771,11 +800,11 @@
             childIds = dataLoader.getChildrenNodeIds(clickNodeId),
             secondNodeIds = dataLoader.getRootChildNodeIds(),
             secondStartNode = thisobj.getNodeById(secondNodeIds[0]),
-            secondStartPosition = secondStartNode.getPosition(),
-            secondStartY = secondStartPosition.y,
+            startPosition = secondStartNode ? secondStartNode.getPosition() : thisobj.getNodeById(thisobj.getRootId()).getPosition(),
+            startY = startPosition.y,
 
-            height = clickNode.getHeight(),
-            width = clickNode.getWidth(),
+            height = clickNode ? clickNode.getHeight() : thisobj.options.node.height || 80,
+            width = clickNode ? clickNode.getWidth() : thisobj.options.node.width || 185,
             distance = thisobj.options.distance,
             space = thisobj.options.spacing;
 
@@ -794,10 +823,10 @@
 
         var viewBox = thisobj.viewBox;
 
-        var x = viewBox.w >= picSize.w ? (viewBox.w - picSize.w) / 2 : viewBox.w - picSize.w,
+        var x = viewBox.w >= picSize.w ? (-viewBox.x) : viewBox.w - picSize.w,
             y = (viewBox.h - picSize.h) / 2;
 
-        y = Math.max(y, 0) - secondStartY;
+        y = Math.max(y, 0) - startY;
 
         thisobj.setViewBox(0 - x, 0 - y);
     };
@@ -815,6 +844,21 @@
         this.labelContainer.style.top = (0 - viewBox.y) + "px";
 
         paper.setViewBox(viewBox.x, viewBox.y, viewBox.w, viewBox.h);
+    };
+
+    /**
+     * 设置 画板的宽高
+     * @param w 宽
+     * @param h 高
+     */
+    SpaceTree.prototype.setPaperSize = function (w, h) {
+        var paper = this.paper,
+            viewBox = this.viewBox;
+
+        viewBox.w = w ? w : viewBox.w;
+        viewBox.h = h ? h : viewBox.h;
+
+        paper.setSize(viewBox.w, viewBox.h);
     };
 
     SpaceTree.prototype.addEventListener = function () {
