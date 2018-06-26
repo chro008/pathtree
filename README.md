@@ -1,8 +1,4 @@
 # move
-拖拽dom元素 的example
-demo地址：
-https://github.easytake.top/simple_move/demo.html
-
 
 ##新增树图（类似桑基），依赖raphael,demo可见
 https://github.easytake.top/pathtree/demo.html
